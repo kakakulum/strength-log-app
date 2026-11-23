@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { getExerciseName, type ExerciseId } from "@/lib/exercises";
-import { RANGES, getMonthDetail, getMonthlyCounts, type RangeMonths } from "@/lib/trend";
+import { RANGES, getMonthDetail, getMonthlyReps, type RangeMonths } from "@/lib/trend";
 import type { SetRecord } from "@/lib/types";
 import { useSets } from "@/lib/use-sets";
 import { getWeeklyStatus } from "@/lib/week";
@@ -22,13 +22,13 @@ function MonthDetail({
   sets,
   exerciseId,
   month,
-  count,
+  reps,
 }: {
   sets: SetRecord[];
   exerciseId: ExerciseId;
   month: string;
-  /** 그 달의 세트 수 (막대 위 숫자와 같은 값) */
-  count: number;
+  /** 그 달의 총 반복 횟수 (막대 위 숫자와 같은 값) */
+  reps: number;
 }) {
   const name = getExerciseName(exerciseId) ?? exerciseId;
   const workouts = getMonthDetail(sets, exerciseId, month);
@@ -39,7 +39,7 @@ function MonthDetail({
       className="flex flex-col gap-2 rounded-2xl border-2 border-foreground p-4"
     >
       <h3 className="font-semibold">
-        {formatMonth(month)} 운동 기록 · <span className="text-blue-500">{count}세트</span>
+        {formatMonth(month)} 운동 기록 · <span className="text-blue-500">총 {reps}회</span>
       </h3>
       {workouts.length === 0 ? (
         <p className="text-zinc-500">이 달에는 기록이 없습니다</p>
@@ -50,7 +50,7 @@ function MonthDetail({
               <span className="text-sm text-zinc-500">
                 {formatDay(w.date)} · {name}
               </span>
-              <span className="text-lg font-semibold">{w.reps.join("·")}회</span>
+              <span className="text-lg font-semibold">{w.reps.join(" · ")}회</span>
               <span className="text-sm text-zinc-500">
                 {w.reps.length}세트 · 총 {w.reps.reduce((a, b) => a + b, 0)}회
               </span>
@@ -65,13 +65,13 @@ function MonthDetail({
 function TrendSection({ sets, exerciseId }: { sets: SetRecord[]; exerciseId: ExerciseId }) {
   const [range, setRange] = useState<RangeMonths>(3);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
-  const months = getMonthlyCounts(sets, exerciseId, range);
+  const months = getMonthlyReps(sets, exerciseId, range);
   // 기간을 바꿔서 선택한 달이 목록에서 사라지면 선택을 해제한 것으로 본다.
   const openMonth = months.some((m) => m.month === selectedMonth) ? selectedMonth : null;
 
   return (
     <section aria-label="월간 추세" className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold text-zinc-500">월간 추세</h2>
+      <h2 className="text-sm font-semibold text-zinc-500">월별 총 반복 횟수</h2>
 
       <div role="group" aria-label="조회 기간" className="grid grid-cols-4 gap-2">
         {RANGES.map((r) => (
@@ -104,7 +104,7 @@ function TrendSection({ sets, exerciseId }: { sets: SetRecord[]; exerciseId: Exe
           sets={sets}
           exerciseId={exerciseId}
           month={openMonth}
-          count={months.find((m) => m.month === openMonth)?.count ?? 0}
+          reps={months.find((m) => m.month === openMonth)?.reps ?? 0}
         />
       )}
     </section>

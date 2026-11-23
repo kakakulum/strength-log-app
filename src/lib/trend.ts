@@ -56,6 +56,36 @@ export function getMonthlyCounts(
   return result;
 }
 
+export interface MonthlyReps {
+  /** "YYYY-MM" */
+  month: string;
+  /** 그 달 총 반복 횟수 (세트별 횟수의 합, 기록이 없는 달은 0) */
+  reps: number;
+}
+
+/**
+ * 기간 안의 월별 총 반복 횟수를 최신 달부터 돌려준다. (기간·KST 달력 월 기준은 getMonthlyCounts와 같다)
+ * 같은 달에 운동을 여러 번 해도 선택한 종목의 모든 세트 횟수를 합산하고, 기록이 없는 달은 0이다.
+ */
+export function getMonthlyReps(
+  sets: SetRecord[],
+  exerciseId: ExerciseId,
+  rangeMonths: RangeMonths,
+  now: Date = new Date(),
+): MonthlyReps[] {
+  const result: MonthlyReps[] = getMonthlyCounts([], exerciseId, rangeMonths, now).map((m) => ({
+    month: m.month,
+    reps: 0,
+  }));
+  const byMonth = new Map(result.map((m) => [m.month, m]));
+  for (const s of sets) {
+    if (s.exerciseId !== exerciseId) continue;
+    const entry = byMonth.get(kstMonthKey(s.completedAt));
+    if (entry) entry.reps += s.reps;
+  }
+  return result;
+}
+
 export interface WorkoutDetail {
   workoutId: string;
   /** 운동한 한국 날짜 "YYYY-MM-DD" */

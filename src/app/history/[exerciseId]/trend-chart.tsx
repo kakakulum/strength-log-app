@@ -3,7 +3,7 @@
 // Design Ref: §1 종목 상세 — 월별 세트 수 막대그래프.
 // 값은 lib/trend.ts의 getMonthlyCounts 결과를 그대로 쓰고(집계·KST·기간은 건드리지 않는다), 여기서는 그리기만 한다.
 // 막대 하나가 버튼이라, 누르면 선택한 달이 강조되고 그 달의 상세 기록이 열린다.
-import type { MonthlyCount } from "@/lib/trend";
+import type { MonthlyReps } from "@/lib/trend";
 
 /** "2026-09" → "2026년 9월" */
 export function formatMonth(month: string): string {
@@ -28,14 +28,14 @@ export default function TrendChart({
   selectedMonth,
   onSelect,
 }: {
-  /** getMonthlyCounts 결과(최신 달부터) */
-  months: MonthlyCount[];
+  /** getMonthlyReps 결과(최신 달부터) */
+  months: MonthlyReps[];
   selectedMonth: string | null;
   onSelect: (month: string) => void;
 }) {
   // 그래프는 시간 순서(왼쪽이 오래된 달, 오른쪽이 최신 달)로 그린다.
   const chronological = [...months].reverse();
-  const max = Math.max(1, ...chronological.map((m) => m.count));
+  const max = Math.max(1, ...chronological.map((m) => m.reps));
   const showAllValues = chronological.length <= SHOW_ALL_VALUES_UP_TO;
 
   return (
@@ -48,26 +48,26 @@ export default function TrendChart({
         {chronological.map((m) => {
           const selected = m.month === selectedMonth;
           // 0세트는 얇은 선(2px)으로 "기록 없음"을 보여주고, 나머지는 최대값 기준 비율로 그린다.
-          const barHeight = m.count === 0 ? 2 : Math.max(4, Math.round((m.count / max) * BAR_AREA));
+          const barHeight = m.reps === 0 ? 2 : Math.max(4, Math.round((m.reps / max) * BAR_AREA));
           const valueVisible = selected || showAllValues;
           return (
             <button
               key={m.month}
               type="button"
               aria-pressed={selected}
-              aria-label={`${formatMonth(m.month)} ${m.count}세트`}
+              aria-label={`${formatMonth(m.month)} ${m.reps}회`}
               data-month={m.month}
-              data-count={m.count}
+              data-reps={m.reps}
               onClick={() => onSelect(m.month)}
               className="flex h-full min-w-0 flex-1 flex-col items-center justify-end"
             >
               <span
                 aria-hidden="true"
-                className={`text-xs font-bold leading-5 ${selected ? ACCENT_TEXT : ""} ${
+                className={`whitespace-nowrap text-xs font-bold leading-5 ${selected ? ACCENT_TEXT : ""} ${
                   valueVisible ? "" : "invisible"
                 }`}
               >
-                {m.count}
+                {m.reps}회
               </span>
               <span
                 aria-hidden="true"
