@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { playRestEndAlert, unlockAlert } from "@/lib/alert";
 import { isSessionEntryAllowed } from "@/lib/entry";
+import { keepScreenAwake } from "@/lib/wake-lock";
 import { extendRestEnd, restRemainingSec, shouldAlertRestEnd } from "@/lib/rest";
 import { shuffleRestQuotes } from "@/lib/rest-quotes";
 import { getExerciseName } from "@/lib/exercises";
@@ -335,6 +336,13 @@ export default function SessionView() {
       router.replace("/");
     }
   }, [raw, allowed, router]);
+
+  // 운동 중에는 화면이 꺼지지 않게 한다. (화면이 꺼지면 휴식 종료 소리·진동이 늦어질 수 있다.)
+  // 세트 진행 화면을 벗어나면(결과 화면·홈) 자동으로 놓는다.
+  useEffect(() => {
+    if (!allowed) return;
+    return keepScreenAwake();
+  }, [allowed]);
 
   if (raw === undefined || !allowed || workout === null) return null;
 
