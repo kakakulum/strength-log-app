@@ -50,6 +50,47 @@ function parseActive(raw: string | null): ActiveWorkout | null {
   }
 }
 
+/** 남은 초를 `m:ss` 형태로 바꾼다. 예: 180 → "3:00" */
+function formatRemaining(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+/**
+ * 휴식 타이머. 1초마다 숫자를 깎지 않고, 저장된 종료 시각과 현재 시각의 차이로
+ * 남은 시간을 매번 다시 계산한다. (화면을 껐다 켜도 정확하다.)
+ */
+function RestTimer({ restEndsAt }: { restEndsAt: string }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const update = () => setNow(Date.now());
+    const id = window.setInterval(update, 500);
+    // 화면을 다시 켰을 때 바로 다시 계산한다.
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", update);
+    };
+  }, []);
+
+  const remainingSec = Math.max(0, Math.ceil((new Date(restEndsAt).getTime() - now) / 1000));
+
+  if (remainingSec === 0) {
+    return (
+      <p role="status" className="text-center text-2xl font-bold text-green-500">
+        휴식 완료
+      </p>
+    );
+  }
+  return (
+    <p role="timer" className="text-center text-2xl font-bold">
+      휴식 중 {formatRemaining(remainingSec)}
+    </p>
+  );
+}
+
 /** 세트 하나의 횟수 조정 영역. key가 바뀌면(다음 세트) 목표 횟수로 다시 채워진다. */
 function SetStepper({ workout }: { workout: ActiveWorkout }) {
   const [reps, setReps] = useState(workout.targetReps);
@@ -77,9 +118,14 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
       return;
     }
     // 이미 저장된 세트(duplicate)여도 기록은 남아 있으므로 다음 세트로 넘어간다.
+    // 마지막 세트 뒤에는 휴식을 시작하지 않는다. (3세트면 타이머는 2번)
+    const isLastSet = workout.completedSets + 1 >= workout.plannedSets;
     const advanced = saveActiveWorkout({
       ...workout,
       completedSets: workout.completedSets + 1,
+      restEndsAt: isLastSet
+        ? null
+        : toKstTimestamp(new Date(Date.now() + workout.restSec * 1000)),
     });
     if (!advanced.ok) {
       setError(advanced.error);
@@ -120,6 +166,8 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
           +
         </button>
       </div>
+
+      {workout.restEndsAt && <RestTimer restEndsAt={workout.restEndsAt} />}
 
       {error && (
         <div role="alert" className="flex flex-col gap-2 rounded-xl border-2 border-red-500 p-4">
