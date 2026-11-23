@@ -46,3 +46,6 @@ next-env.d.ts
 # 도구 상태 폴더
 /.bkit/
 /.claude/
+
+.vercel
+.env*
