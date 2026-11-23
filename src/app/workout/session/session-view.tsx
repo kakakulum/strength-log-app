@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import { playRestEndAlert, unlockAlert } from "@/lib/alert";
 import { isSessionEntryAllowed } from "@/lib/entry";
 import { extendRestEnd, restRemainingSec, shouldAlertRestEnd } from "@/lib/rest";
+import { shuffleRestQuotes } from "@/lib/rest-quotes";
 import { getExerciseName } from "@/lib/exercises";
 import {
   clearActiveWorkout,
@@ -58,10 +59,12 @@ function formatRemaining(sec: number): string {
  */
 function RestTimer({
   restEndsAt,
+  quote,
   onExtend,
   onSkip,
 }: {
   restEndsAt: string;
+  quote: string | null;
   onExtend: () => void;
   onSkip: () => void;
 }) {
@@ -100,6 +103,11 @@ function RestTimer({
       <p role="timer" className="text-center text-2xl font-bold">
         휴식 중 {formatRemaining(remainingSec)}
       </p>
+      {quote && (
+        <p className="text-center text-sm leading-relaxed text-balance text-zinc-600 dark:text-zinc-400">
+          {quote}
+        </p>
+      )}
       {/* 휴식 중에만 보인다 */}
       <div className="grid grid-cols-2 gap-3">
         <button
@@ -122,7 +130,15 @@ function RestTimer({
 }
 
 /** 세트 하나의 횟수 조정 영역. key가 바뀌면(다음 세트) 목표 횟수로 다시 채워진다. */
-function SetStepper({ workout }: { workout: ActiveWorkout }) {
+function SetStepper({
+  workout,
+  restQuote,
+  onRestStart,
+}: {
+  workout: ActiveWorkout;
+  restQuote: string | null;
+  onRestStart: () => void;
+}) {
   const router = useRouter();
   const [reps, setReps] = useState(workout.targetReps);
   // 오류가 난 동작을 함께 기억해, [재시도]가 같은 동작을 다시 하게 한다.
@@ -187,6 +203,7 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
       goToResult();
       return;
     }
+    onRestStart();
     window.dispatchEvent(new Event(ACTIVE_CHANGE_EVENT));
   }
 
@@ -251,7 +268,7 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
       </div>
 
       {workout.restEndsAt && (
-        <RestTimer restEndsAt={workout.restEndsAt} onExtend={handleExtend} onSkip={handleSkip} />
+        <RestTimer restEndsAt={workout.restEndsAt} quote={restQuote} onExtend={handleExtend} onSkip={handleSkip} />
       )}
 
       {error && (
@@ -290,6 +307,8 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
 
 export default function SessionView() {
   const router = useRouter();
+  const [restQuote, setRestQuote] = useState<string | null>(null);
+  const restQuoteDeck = useRef<string[]>([]);
   const raw = useSyncExternalStore(subscribe, getActiveRaw, () => undefined);
   const workout = useMemo(() => (raw === undefined ? null : parseActive(raw)), [raw]);
   // 설정 화면에서 시작해 이동해 온 운동인지. 새로고침·주소 직접 입력이면 false다.
@@ -306,5 +325,20 @@ export default function SessionView() {
   }, [raw, allowed, router]);
 
   if (raw === undefined || !allowed || workout === null) return null;
-  return <SetStepper key={workout.completedSets} workout={workout} />;
+
+  function showNextRestQuote() {
+    if (restQuoteDeck.current.length === 0) {
+      restQuoteDeck.current = shuffleRestQuotes(restQuote);
+    }
+    setRestQuote(restQuoteDeck.current.pop() ?? null);
+  }
+
+  return (
+    <SetStepper
+      key={workout.completedSets}
+      workout={workout}
+      restQuote={restQuote}
+      onRestStart={showNextRestQuote}
+    />
+  );
 }
