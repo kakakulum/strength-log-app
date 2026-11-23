@@ -183,3 +183,28 @@ export function clearActiveWorkout(): void {
     // 지우기에 실패해도 다음 진입 때 다시 정리되므로 무시한다.
   }
 }
+
+const RESULT_KEY = "resultWorkoutId";
+
+/** 결과 화면에서 보여줄 운동 ID를 저장한다 (탭을 닫으면 사라지는 sessionStorage). */
+export function saveResultWorkoutId(workoutId: string): Result<null> {
+  const storage = getStorage("session");
+  if (!storage.ok) return storage;
+  try {
+    storage.value.setItem(RESULT_KEY, workoutId);
+    return { ok: true, value: null };
+  } catch {
+    return { ok: false, error: "결과를 표시하지 못했습니다." };
+  }
+}
+
+/** 결과 화면에서 보여줄 운동 ID를 읽는다. 없으면 null. */
+export function loadResultWorkoutId(): string | null {
+  const storage = getStorage("session");
+  if (!storage.ok) return null;
+  try {
+    return storage.value.getItem(RESULT_KEY);
+  } catch {
+    return null;
+  }
+}

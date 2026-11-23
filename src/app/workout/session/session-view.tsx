@@ -8,6 +8,7 @@ import { getExerciseName } from "@/lib/exercises";
 import {
   clearActiveWorkout,
   saveActiveWorkout,
+  saveResultWorkoutId,
   saveSet,
   toKstTimestamp,
 } from "@/lib/storage";
@@ -93,12 +94,24 @@ function RestTimer({ restEndsAt }: { restEndsAt: string }) {
 
 /** 세트 하나의 횟수 조정 영역. key가 바뀌면(다음 세트) 목표 횟수로 다시 채워진다. */
 function SetStepper({ workout }: { workout: ActiveWorkout }) {
+  const router = useRouter();
   const [reps, setReps] = useState(workout.targetReps);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const exerciseName = getExerciseName(workout.exerciseId) ?? workout.exerciseId;
   const allDone = workout.completedSets >= workout.plannedSets;
   const currentSet = Math.min(workout.completedSets + 1, workout.plannedSets);
+
+  // 결과 화면으로 간다. 새 세트는 추가하지 않고, 지금까지 완료한 세트만 보여준다.
+  // (진행 중 운동 정보는 결과 화면에서 지운다. 여기서 지우면 홈으로 되돌아가 버린다.)
+  function goToResult() {
+    const saved = saveResultWorkoutId(workout.workoutId);
+    if (!saved.ok) {
+      setError(saved.error);
+      return;
+    }
+    router.push("/workout/result");
+  }
 
   // [세트 완료]: 저장에 성공한 뒤에만 완료 세트 수를 늘린다.
   // 저장에 실패하면 입력한 횟수를 그대로 두고 오류와 [재시도]를 보여준다.
@@ -134,6 +147,11 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
     }
     setError(null);
     setSaving(false);
+    // 마지막 세트를 완료하면 바로 결과를 보여준다.
+    if (isLastSet) {
+      goToResult();
+      return;
+    }
     window.dispatchEvent(new Event(ACTIVE_CHANGE_EVENT));
   }
 
@@ -182,11 +200,6 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
         </div>
       )}
 
-      {allDone && (
-        <p className="text-center text-lg font-semibold">모든 세트를 완료했습니다</p>
-      )}
-
-      {/* [운동 종료]의 동작은 PLAN 8번에서 연결한다. */}
       <div className="flex flex-col gap-3">
         <button
           type="button"
@@ -198,7 +211,7 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
         </button>
         <button
           type="button"
-          disabled
+          onClick={goToResult}
           className="rounded-2xl border-2 border-zinc-400 px-6 py-4 text-lg font-semibold disabled:opacity-40"
         >
           운동 종료
