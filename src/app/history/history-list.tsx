@@ -6,7 +6,7 @@ import { EXERCISES } from "@/lib/exercises";
 import { useSets } from "@/lib/use-sets";
 
 export default function HistoryList() {
-  const sets = useSets();
+  const state = useSets();
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-6 py-8">
@@ -17,7 +17,11 @@ export default function HistoryList() {
         </Link>
       </div>
 
-      {sets === null ? null : sets.length === 0 ? (
+      {state.status === "loading" ? null : state.status === "error" ? (
+        <p role="alert" className="py-10 text-center text-red-500">
+          {state.message}
+        </p>
+      ) : state.sets.length === 0 ? (
         <p className="py-10 text-center text-zinc-500">아직 운동 기록이 없습니다</p>
       ) : (
         <ul className="flex flex-col gap-3">

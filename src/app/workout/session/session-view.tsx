@@ -1,9 +1,10 @@
 "use client";
 
 // Design Ref: §1 세트 진행 — `스쿼트 · 1/4세트`, 목표 횟수 기본값, [−]/[+] 조정(1~100)
-// Design Ref: §2 — 새로고침·주소 직접 입력으로 들어오면 진행 정보를 지우고 홈으로 보낸다.
+// Design Ref: §2 — 설정 화면에서 시작해 이동해 온 경우에만 열고, 새로고침·주소 직접 입력이면 진행 정보를 지우고 홈으로 보낸다.
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { isSessionEntryAllowed } from "@/lib/entry";
 import { getExerciseName } from "@/lib/exercises";
 import {
   clearActiveWorkout,
@@ -23,7 +24,6 @@ const subscribe = (onChange: () => void) => {
   window.addEventListener(ACTIVE_CHANGE_EVENT, onChange);
   return () => window.removeEventListener(ACTIVE_CHANGE_EVENT, onChange);
 };
-const subscribeNone = () => () => {};
 
 // 진행 중 운동의 원문 문자열을 스냅샷으로 쓴다 (서버에서는 undefined = 아직 모름).
 function getActiveRaw(): string | null {
@@ -32,14 +32,6 @@ function getActiveRaw(): string | null {
   } catch {
     return null;
   }
-}
-
-// 이 화면이 새로고침으로 열렸는지 확인한다.
-function getIsReload(): boolean {
-  const nav = performance.getEntriesByType("navigation")[0] as
-    | PerformanceNavigationTiming
-    | undefined;
-  return nav?.type === "reload";
 }
 
 function parseActive(raw: string | null): ActiveWorkout | null {
@@ -96,7 +88,9 @@ function RestTimer({ restEndsAt }: { restEndsAt: string }) {
 function SetStepper({ workout }: { workout: ActiveWorkout }) {
   const router = useRouter();
   const [reps, setReps] = useState(workout.targetReps);
-  const [error, setError] = useState<string | null>(null);
+  // 오류가 난 동작을 함께 기억해, [재시도]가 같은 동작을 다시 하게 한다.
+  // (종료에서 난 오류의 재시도가 새 세트를 저장하면 안 된다.)
+  const [error, setError] = useState<{ message: string; retry: "complete" | "end" } | null>(null);
   const [saving, setSaving] = useState(false);
   const exerciseName = getExerciseName(workout.exerciseId) ?? workout.exerciseId;
   const allDone = workout.completedSets >= workout.plannedSets;
@@ -107,7 +101,7 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
   function goToResult() {
     const saved = saveResultWorkoutId(workout.workoutId);
     if (!saved.ok) {
-      setError(saved.error);
+      setError({ message: saved.error, retry: "end" });
       return;
     }
     router.push("/workout/result");
@@ -126,7 +120,7 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
       completedAt: toKstTimestamp(),
     });
     if (!saved.ok) {
-      setError(saved.error);
+      setError({ message: saved.error, retry: "complete" });
       setSaving(false);
       return;
     }
@@ -141,7 +135,7 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
         : toKstTimestamp(new Date(Date.now() + workout.restSec * 1000)),
     });
     if (!advanced.ok) {
-      setError(advanced.error);
+      setError({ message: advanced.error, retry: "complete" });
       setSaving(false);
       return;
     }
@@ -189,10 +183,10 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
 
       {error && (
         <div role="alert" className="flex flex-col gap-2 rounded-xl border-2 border-red-500 p-4">
-          <p className="text-red-500">{error}</p>
+          <p className="text-red-500">{error.message}</p>
           <button
             type="button"
-            onClick={handleComplete}
+            onClick={error.retry === "end" ? goToResult : handleComplete}
             className="rounded-lg bg-red-500 px-4 py-2 font-semibold text-white"
           >
             재시도
@@ -224,19 +218,20 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
 export default function SessionView() {
   const router = useRouter();
   const raw = useSyncExternalStore(subscribe, getActiveRaw, () => undefined);
-  const isReload = useSyncExternalStore(subscribeNone, getIsReload, () => false);
   const workout = useMemo(() => (raw === undefined ? null : parseActive(raw)), [raw]);
+  // 설정 화면에서 시작해 이동해 온 운동인지. 새로고침·주소 직접 입력이면 false다.
+  const allowed = workout !== null && isSessionEntryAllowed(workout.workoutId);
 
-  // 진행 중 운동이 없거나 새로고침으로 열린 경우: 진행 정보를 지우고 홈으로 보낸다.
-  // (이미 완료한 세트 기록은 그대로 남는다.)
+  // 진행 중 운동이 없거나, 설정 화면을 거치지 않고 열린 경우(새로고침·주소 직접 입력):
+  // 진행 정보를 지우고 홈으로 보낸다. (이미 완료한 세트 기록은 그대로 남는다.)
   useEffect(() => {
     if (raw === undefined) return; // 서버 렌더링 단계
-    if (isReload || workout === null) {
+    if (!allowed) {
       clearActiveWorkout();
       router.replace("/");
     }
-  }, [raw, isReload, workout, router]);
+  }, [raw, allowed, router]);
 
-  if (raw === undefined || isReload || workout === null) return null;
+  if (raw === undefined || !allowed || workout === null) return null;
   return <SetStepper key={workout.completedSets} workout={workout} />;
 }

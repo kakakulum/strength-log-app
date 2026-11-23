@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import { EXERCISES, isExerciseId, type ExerciseId } from "@/lib/exercises";
+import { allowSessionEntry } from "@/lib/entry";
 import { loadSettings, saveActiveWorkout, saveSettings } from "@/lib/storage";
 import { DEFAULT_SETTINGS, LIMITS } from "@/lib/types";
 
@@ -55,9 +56,10 @@ function SetupFields() {
     };
     // 설정값은 다음 운동에서 불러오도록 저장하고, 진행 중 운동 정보를 만든다.
     const savedSettings = saveSettings(settings);
+    const workoutId = crypto.randomUUID();
     const savedActive = saveActiveWorkout({
       ...settings,
-      workoutId: crypto.randomUUID(),
+      workoutId,
       completedSets: 0,
       restEndsAt: null,
     });
@@ -65,6 +67,8 @@ function SetupFields() {
       setSaveError(!savedActive.ok ? savedActive.error : "설정을 저장하지 못했습니다.");
       return;
     }
+    // 이 문서 안에서 설정 화면을 거쳐 시작한 운동만 세트 진행 화면이 열어 준다.
+    allowSessionEntry(workoutId);
     router.push("/workout/session");
   }
 

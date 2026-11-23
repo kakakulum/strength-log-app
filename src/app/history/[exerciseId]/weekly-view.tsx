@@ -1,7 +1,7 @@
 "use client";
 
 // Design Ref: §1 종목 상세 — 위: 이번 주·지난주 세트 수와 전주 대비 변화, 아래: 기간 선택과 월별 세트 수.
-// 기록이 없으면 안내 문구. (월별 기록 상세 조회는 PLAN 12번에서 월 행에 연결한다.)
+// 월 행을 누르면 그 달의 운동 기록(날짜·종목·세트별 횟수)을 연다. 기록이 없으면 안내 문구, 읽기 실패면 오류 문구.
 import Link from "next/link";
 import { useState } from "react";
 import { getExerciseName, type ExerciseId } from "@/lib/exercises";
@@ -119,8 +119,9 @@ function TrendSection({ sets, exerciseId }: { sets: SetRecord[]; exerciseId: Exe
 }
 
 export default function WeeklyView({ exerciseId }: { exerciseId: ExerciseId }) {
-  const sets = useSets();
+  const state = useSets();
   const name = getExerciseName(exerciseId) ?? exerciseId;
+  const sets = state.status === "ok" ? state.sets : null;
   const status = sets === null ? null : getWeeklyStatus(sets, exerciseId);
 
   return (
@@ -132,7 +133,11 @@ export default function WeeklyView({ exerciseId }: { exerciseId: ExerciseId }) {
         </Link>
       </div>
 
-      {sets === null || status === null ? null : status.isEmpty ? (
+      {state.status === "error" ? (
+        <p role="alert" className="py-10 text-center text-red-500">
+          {state.message}
+        </p>
+      ) : sets === null || status === null ? null : status.isEmpty ? (
         <p className="py-10 text-center text-zinc-500">아직 운동 기록이 없습니다</p>
       ) : (
         <>

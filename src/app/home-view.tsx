@@ -12,10 +12,13 @@ function subscribe(onChange: () => void) {
   return () => window.removeEventListener("storage", onChange);
 }
 
-// 저장된 세트 수(숫자)를 스냅샷으로 쓴다. 읽기에 실패하면 0으로 본다.
+// 읽기에 실패했음을 나타내는 값. (실패를 0건으로 보이게 하면 기록이 사라진 것처럼 오해한다.)
+const READ_FAILED = -1;
+
+// 저장된 세트 수(숫자)를 스냅샷으로 쓴다. 읽기에 실패하면 READ_FAILED.
 function getSnapshot(): number {
   const result = loadSets();
-  return result.ok ? result.value.length : 0;
+  return result.ok ? result.value.length : READ_FAILED;
 }
 
 // 서버 렌더링 중에는 저장소를 알 수 없으므로 null(아직 모름)로 둔다.
@@ -61,9 +64,14 @@ export default function HomeView() {
         </Link>
       </div>
 
-      {/* 저장소를 읽은 뒤(null이 아닐 때) 기록이 0건이면 안내 문구를 보여준다 */}
+      {/* 저장소를 읽은 뒤(null이 아닐 때) 기록이 0건이면 안내 문구를, 읽기에 실패했으면 오류 문구를 보여준다 */}
       {setCount === 0 && (
         <p className="text-center text-zinc-500">아직 운동 기록이 없습니다</p>
+      )}
+      {setCount === READ_FAILED && (
+        <p role="alert" className="text-center text-red-500">
+          기록을 읽지 못했습니다. 브라우저 저장소를 사용할 수 없는 상태일 수 있습니다.
+        </p>
       )}
 
       {/* 내보낼 기록이 있을 때만 작은 [내보내기]를 보여준다 (필수 버튼 두 개는 그대로) */}
