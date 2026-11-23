@@ -143,7 +143,7 @@ function SetStepper({
   const [reps, setReps] = useState(workout.targetReps);
   // 오류가 난 동작을 함께 기억해, [재시도]가 같은 동작을 다시 하게 한다.
   // (종료에서 난 오류의 재시도가 새 세트를 저장하면 안 된다.)
-  const [error, setError] = useState<{ message: string; retry: "complete" | "end" } | null>(null);
+  const [error, setError] = useState<{ message: string; retry: "complete" | "end" | "extend" | "skip" } | null>(null);
   const [saving, setSaving] = useState(false);
   const exerciseName = getExerciseName(workout.exerciseId) ?? workout.exerciseId;
   const allDone = workout.completedSets >= workout.plannedSets;
@@ -214,9 +214,10 @@ function SetStepper({
     if (next === null) return;
     const saved = saveActiveWorkout({ ...workout, restEndsAt: next });
     if (!saved.ok) {
-      setError({ message: saved.error, retry: "complete" });
+      setError({ message: saved.error, retry: "extend" });
       return;
     }
+    setError(null);
     window.dispatchEvent(new Event(ACTIVE_CHANGE_EVENT));
   }
 
@@ -224,11 +225,22 @@ function SetStepper({
   function handleSkip() {
     const saved = saveActiveWorkout({ ...workout, restEndsAt: null });
     if (!saved.ok) {
-      setError({ message: saved.error, retry: "complete" });
+      setError({ message: saved.error, retry: "skip" });
       return;
     }
+    setError(null);
     window.dispatchEvent(new Event(ACTIVE_CHANGE_EVENT));
   }
+
+  // [재시도]는 실패한 바로 그 동작을 다시 한다. (휴식 조작이 실패했는데 세트가 새로 저장되면 안 된다.)
+  const retryAction =
+    error?.retry === "end"
+      ? goToResult
+      : error?.retry === "extend"
+        ? handleExtend
+        : error?.retry === "skip"
+          ? handleSkip
+          : handleComplete;
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-8 px-6 py-10">
@@ -276,7 +288,7 @@ function SetStepper({
           <p className="text-red-500">{error.message}</p>
           <button
             type="button"
-            onClick={error.retry === "end" ? goToResult : handleComplete}
+            onClick={retryAction}
             className="rounded-lg bg-red-500 px-4 py-2 font-semibold text-white"
           >
             재시도

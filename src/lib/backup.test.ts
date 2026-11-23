@@ -112,3 +112,16 @@ describe("updateSetReps — 횟수 수정", () => {
     expect(store.get("sets")).toBe(before);
   });
 });
+
+describe("날짜 형식이 틀린 기록 거르기", () => {
+  it("읽을 때 걸러내고 다른 기록은 그대로 보여준다 (원본은 지우지 않는다)", () => {
+    const bad = { ...rec("x", 1, 5), completedAt: "어제" };
+    store.set("sets", JSON.stringify([bad, rec("a", 1, 8)]));
+    const loaded = loadSets();
+    expect(loaded.ok && loaded.value.map((s) => s.workoutId)).toEqual(["a"]);
+    expect(JSON.parse(store.get("sets")!)).toHaveLength(2);
+  });
+  it("날짜가 틀린 기록은 저장하지 않는다", () => {
+    expect(saveSet({ ...rec("x", 1, 5), completedAt: "어제" }).ok).toBe(false);
+  });
+});

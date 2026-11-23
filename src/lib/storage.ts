@@ -65,7 +65,9 @@ export function isSetRecord(value: unknown): value is SetRecord {
     typeof v.exerciseId === "string" &&
     isExerciseId(v.exerciseId) &&
     isValidReps(v.reps) &&
-    typeof v.completedAt === "string"
+    typeof v.completedAt === "string" &&
+    // 날짜로 읽을 수 없는 기록은 걸러낸다. (집계·CSV에서 날짜 계산이 오류로 멈추지 않게)
+    !Number.isNaN(new Date(v.completedAt).getTime())
   );
 }
 
