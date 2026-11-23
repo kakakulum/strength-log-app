@@ -54,6 +54,17 @@ function isValidReps(reps: unknown): reps is number {
 /** 같은 탭에서 세트 기록을 바꿨을 때 화면을 다시 읽게 하는 알림 이름 (storage 이벤트는 다른 탭에서만 발생) */
 export const SETS_CHANGE_EVENT = "sets-change";
 
+const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+const MIN_TIME = Date.UTC(2000, 0, 1);
+const MAX_TIME = Date.UTC(2100, 0, 1);
+
+/** ISO 형식이고 2000~2100년 안이며 KST 계산이 가능한 시각인지 */
+export function isReasonableTimestamp(value: string): boolean {
+  if (!ISO_TIMESTAMP.test(value)) return false;
+  const t = new Date(value).getTime();
+  return !Number.isNaN(t) && t >= MIN_TIME && t < MAX_TIME;
+}
+
 export function isSetRecord(value: unknown): value is SetRecord {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
@@ -66,8 +77,9 @@ export function isSetRecord(value: unknown): value is SetRecord {
     isExerciseId(v.exerciseId) &&
     isValidReps(v.reps) &&
     typeof v.completedAt === "string" &&
-    // 날짜로 읽을 수 없는 기록은 걸러낸다. (집계·CSV에서 날짜 계산이 오류로 멈추지 않게)
-    !Number.isNaN(new Date(v.completedAt).getTime())
+    // ISO 형식이 아니거나 합리적인 범위(2000~2100년)를 벗어난 날짜는 걸러낸다.
+    // (집계·CSV에서 날짜 계산이 오류로 멈추지 않게. 아주 먼 날짜는 KST 계산에서 오류가 난다.)
+    isReasonableTimestamp(v.completedAt)
   );
 }
 

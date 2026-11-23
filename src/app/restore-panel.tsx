@@ -7,6 +7,9 @@ import { parseBackup } from "@/lib/backup";
 import { loadSets, mergeSets } from "@/lib/storage";
 import type { SetRecord } from "@/lib/types";
 
+// 아주 큰 파일을 읽다가 탭이 멈추지 않게 하는 크기 제한 (브라우저 저장소도 약 5MB가 한계다)
+const MAX_BACKUP_BYTES = 5_000_000;
+
 type Pending = { records: SetRecord[]; add: number; dup: number };
 
 export default function RestorePanel() {
@@ -18,6 +21,10 @@ export default function RestorePanel() {
     setPending(null);
     setMessage(null);
     if (!file) return;
+    if (file.size > MAX_BACKUP_BYTES) {
+      setMessage({ text: "파일이 너무 큽니다. (최대 5MB) 기존 기록은 그대로입니다.", error: true });
+      return;
+    }
     let text: string;
     try {
       text = await file.text();

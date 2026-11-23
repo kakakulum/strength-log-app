@@ -1,0 +1,7 @@
+# 비밀 값 파일이 배포 소스로 올라가지 않게 한다.
+.env
+.env.*
+.vercel
+.git
+node_modules
+trash-can

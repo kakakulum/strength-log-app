@@ -125,3 +125,21 @@ describe("날짜 형식이 틀린 기록 거르기", () => {
     expect(saveSet({ ...rec("x", 1, 5), completedAt: "어제" }).ok).toBe(false);
   });
 });
+
+describe("날짜 범위 제한", () => {
+  const bad = (completedAt: string) => ({ ...rec("x", 1, 5), completedAt });
+  it("JS 날짜 최대값 근처·2000년 이전·2100년 이후·형식이 다른 날짜는 거부", () => {
+    for (const t of ["+275760-09-13T00:00:00Z", "1999-12-31T23:59:59+09:00", "2100-01-02T00:00:00+09:00", "2026-11-03", "2026/11/03 10:00"]) {
+      expect(saveSet(bad(t)).ok, t).toBe(false);
+    }
+  });
+  it("정상 KST·UTC 표기는 통과", () => {
+    expect(saveSet(bad("2026-11-03T10:00:00+09:00")).ok).toBe(true);
+    expect(saveSet({ ...bad("2026-10-31T15:00:00Z"), setNo: 2 }).ok).toBe(true);
+  });
+  it("복원 파일에 먼 미래 날짜가 있으면 파일 전체를 거부", () => {
+    const base = JSON.parse(buildBackup([rec("a", 1, 8)]));
+    base.sets.push(bad("+275760-09-13T00:00:00Z"));
+    expect(parseBackup(JSON.stringify(base)).ok).toBe(false);
+  });
+});
