@@ -3,13 +3,19 @@
 // Design Ref: §1 홈 — [운동 시작], [기록·추세] 두 버튼과 기록이 없을 때의 안내 문구
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
+import { backupFileName, buildBackup } from "@/lib/backup";
 import { buildCsv, csvFileName } from "@/lib/csv";
-import { loadSets } from "@/lib/storage";
+import { SETS_CHANGE_EVENT, loadSets } from "@/lib/storage";
+import RestorePanel from "./restore-panel";
 
 // 저장소는 다른 탭에서 바뀔 수 있으므로 storage 이벤트를 구독한다.
 function subscribe(onChange: () => void) {
   window.addEventListener("storage", onChange);
-  return () => window.removeEventListener("storage", onChange);
+  window.addEventListener(SETS_CHANGE_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(SETS_CHANGE_EVENT, onChange);
+  };
 }
 
 // 읽기에 실패했음을 나타내는 값. (실패를 0건으로 보이게 하면 기록이 사라진 것처럼 오해한다.)
@@ -28,18 +34,29 @@ function getServerSnapshot(): number | null {
 
 // Design Ref: §6 CSV 내보내기(nice) — 전체 기록을 엑셀에서 열 수 있는 CSV 파일로 저장한다.
 // 기록은 서버로 보내지 않고 이 브라우저 안에서 파일로 만든다.
-function exportCsv() {
-  const loaded = loadSets();
-  if (!loaded.ok) return;
-  const blob = new Blob([buildCsv(loaded.value)], { type: "text/csv;charset=utf-8" });
+function downloadFile(content: string, type: string, fileName: string) {
+  const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = csvFileName();
+  a.download = fileName;
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+function exportCsv() {
+  const loaded = loadSets();
+  if (!loaded.ok) return;
+  downloadFile(buildCsv(loaded.value), "text/csv;charset=utf-8", csvFileName());
+}
+
+// 백업(JSON): 나중에 복원할 수 있는 파일. CSV와 별개다.
+function exportBackup() {
+  const loaded = loadSets();
+  if (!loaded.ok) return;
+  downloadFile(buildBackup(loaded.value), "application/json", backupFileName());
 }
 
 export default function HomeView() {
@@ -74,16 +91,18 @@ export default function HomeView() {
         </p>
       )}
 
-      {/* 내보낼 기록이 있을 때만 작은 [내보내기]를 보여준다 (필수 버튼 두 개는 그대로) */}
+      {/* 내보낼 기록이 있을 때만 작은 내보내기·백업 버튼을 보여준다 (필수 버튼 두 개는 그대로) */}
       {setCount !== null && setCount > 0 && (
-        <button
-          type="button"
-          onClick={exportCsv}
-          className="self-center text-sm text-zinc-500 underline"
-        >
-          내보내기 (CSV)
-        </button>
+        <div className="flex items-center justify-center gap-4">
+          <button type="button" onClick={exportCsv} className="text-sm text-zinc-500 underline">
+            내보내기 (CSV)
+          </button>
+          <button type="button" onClick={exportBackup} className="text-sm text-zinc-500 underline">
+            백업 (JSON)
+          </button>
+        </div>
       )}
+      {setCount !== null && setCount !== READ_FAILED && <RestorePanel />}
     </main>
   );
 }

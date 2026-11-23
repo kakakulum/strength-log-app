@@ -11,8 +11,10 @@ import {
   getMonthlyReps,
   getRecentWorkouts,
   type RangeMonths,
+  type WorkoutDetail,
 } from "@/lib/trend";
-import type { SetRecord } from "@/lib/types";
+import { updateSetReps } from "@/lib/storage";
+import { LIMITS, type SetRecord } from "@/lib/types";
 import { useSets } from "@/lib/use-sets";
 import { getWeeklyStatus } from "@/lib/week";
 import TrendChart, { formatMonth } from "./trend-chart";
@@ -21,6 +23,116 @@ import TrendChart, { formatMonth } from "./trend-chart";
 function formatDay(date: string): string {
   const [, m, d] = date.split("-");
   return `${Number(m)}월 ${Number(d)}일`;
+}
+
+/** 월별 상세의 운동 하나. [횟수 수정]으로 세트별 반복 횟수만 1~100 정수로 고칠 수 있다. */
+function WorkoutRow({
+  sets,
+  workout,
+  name,
+}: {
+  sets: SetRecord[];
+  workout: WorkoutDetail;
+  name: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [drafts, setDrafts] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  // 이 운동의 세트(번호 순서). 표시되는 횟수와 같은 순서다.
+  const records = sets
+    .filter((s) => s.workoutId === workout.workoutId && s.exerciseId === workout.exerciseId)
+    .sort((a, b) => a.setNo - b.setNo);
+
+  function startEdit() {
+    setDrafts(records.map((r) => String(r.reps)));
+    setError(null);
+    setEditing(true);
+  }
+
+  function save() {
+    const changes: { setNo: number; reps: number }[] = [];
+    for (let i = 0; i < records.length; i++) {
+      const text = drafts[i].trim();
+      const n = Number(text);
+      if (text === "" || !Number.isInteger(n) || n < LIMITS.reps.min || n > LIMITS.reps.max) {
+        setError(`${records[i].setNo}세트: ${LIMITS.reps.min}~${LIMITS.reps.max} 사이의 정수를 입력해 주세요.`);
+        return;
+      }
+      if (n !== records[i].reps) changes.push({ setNo: records[i].setNo, reps: n });
+    }
+    if (changes.length > 0) {
+      const saved = updateSetReps(workout.workoutId, changes);
+      if (!saved.ok) {
+        setError(saved.error);
+        return;
+      }
+    }
+    setEditing(false);
+  }
+
+  return (
+    <li className="flex flex-col gap-1 rounded-xl bg-zinc-500/10 px-3 py-2">
+      <span className="text-sm text-zinc-500">
+        {formatDay(workout.date)} · {name}
+      </span>
+      {editing ? (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            {records.map((r, i) => (
+              <label key={r.setNo} className="flex flex-col gap-1 text-sm text-zinc-500">
+                {r.setNo}세트 횟수
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={drafts[i] ?? ""}
+                  onChange={(e) =>
+                    setDrafts((d) => d.map((v, j) => (j === i ? e.target.value : v)))
+                  }
+                  className="w-full rounded-lg border-2 border-zinc-400 bg-transparent px-3 py-2 text-lg text-foreground"
+                />
+              </label>
+            ))}
+          </div>
+          {error && (
+            <p role="alert" className="text-sm text-red-500">
+              {error}
+            </p>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={save}
+              className="rounded-lg bg-foreground px-3 py-2 font-semibold text-background"
+            >
+              저장
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="rounded-lg border-2 border-zinc-400 px-3 py-2 font-semibold"
+            >
+              취소
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <span className="text-lg font-semibold">{workout.reps.join(" · ")}회</span>
+          <span className="text-sm text-zinc-500">
+            {workout.reps.length}세트 · 총 {workout.reps.reduce((a, b) => a + b, 0)}회
+          </span>
+          <button
+            type="button"
+            onClick={startEdit}
+            className="self-start text-sm text-zinc-500 underline"
+          >
+            횟수 수정
+          </button>
+        </>
+      )}
+    </li>
+  );
 }
 
 /** 선택한 달의 운동 기록: 날짜, 종목, 세트별 횟수 */
@@ -52,15 +164,7 @@ function MonthDetail({
       ) : (
         <ul className="flex flex-col gap-2">
           {workouts.map((w) => (
-            <li key={w.workoutId} className="flex flex-col rounded-xl bg-zinc-500/10 px-3 py-2">
-              <span className="text-sm text-zinc-500">
-                {formatDay(w.date)} · {name}
-              </span>
-              <span className="text-lg font-semibold">{w.reps.join(" · ")}회</span>
-              <span className="text-sm text-zinc-500">
-                {w.reps.length}세트 · 총 {w.reps.reduce((a, b) => a + b, 0)}회
-              </span>
-            </li>
+            <WorkoutRow key={w.workoutId} sets={sets} workout={w} name={name} />
           ))}
         </ul>
       )}

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { playRestEndAlert, unlockAlert } from "@/lib/alert";
 import { isSessionEntryAllowed } from "@/lib/entry";
+import { extendRestEnd, restRemainingSec, shouldAlertRestEnd } from "@/lib/rest";
 import { getExerciseName } from "@/lib/exercises";
 import {
   clearActiveWorkout,
@@ -55,15 +56,24 @@ function formatRemaining(sec: number): string {
  * 휴식 타이머. 1초마다 숫자를 깎지 않고, 저장된 종료 시각과 현재 시각의 차이로
  * 남은 시간을 매번 다시 계산한다. (화면을 껐다 켜도 정확하다.)
  */
-function RestTimer({ restEndsAt }: { restEndsAt: string }) {
+function RestTimer({
+  restEndsAt,
+  onExtend,
+  onSkip,
+}: {
+  restEndsAt: string;
+  onExtend: () => void;
+  onSkip: () => void;
+}) {
   const [now, setNow] = useState(() => Date.now());
 
-  const remainingSec = Math.max(0, Math.ceil((new Date(restEndsAt).getTime() - now) / 1000));
+  const remainingSec = restRemainingSec(restEndsAt, now);
 
-  // 휴식이 "끝나는 순간"에 한 번만 알린다. 이 화면에 들어왔을 때 이미 끝나 있던 휴식은 알리지 않는다.
+  // 휴식이 "끝나는 순간"에 한 번만 알린다. 이 화면에 들어왔을 때 이미 끝나 있던 휴식은 알리지 않고,
+  // [건너뛰기]로 끝낸 휴식은 이 컴포넌트가 사라지므로 알리지 않는다.
   const prevRemainingRef = useRef(remainingSec);
   useEffect(() => {
-    if (prevRemainingRef.current > 0 && remainingSec === 0) playRestEndAlert();
+    if (shouldAlertRestEnd(prevRemainingRef.current, remainingSec)) playRestEndAlert();
     prevRemainingRef.current = remainingSec;
   }, [remainingSec]);
 
@@ -86,9 +96,28 @@ function RestTimer({ restEndsAt }: { restEndsAt: string }) {
     );
   }
   return (
-    <p role="timer" className="text-center text-2xl font-bold">
-      휴식 중 {formatRemaining(remainingSec)}
-    </p>
+    <div className="flex flex-col gap-3">
+      <p role="timer" className="text-center text-2xl font-bold">
+        휴식 중 {formatRemaining(remainingSec)}
+      </p>
+      {/* 휴식 중에만 보인다 */}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={onExtend}
+          className="rounded-xl border-2 border-zinc-400 px-4 py-3 text-lg font-semibold"
+        >
+          +30초
+        </button>
+        <button
+          type="button"
+          onClick={onSkip}
+          className="rounded-xl border-2 border-zinc-400 px-4 py-3 text-lg font-semibold"
+        >
+          건너뛰기
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -159,6 +188,29 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
     window.dispatchEvent(new Event(ACTIVE_CHANGE_EVENT));
   }
 
+  // [+30초]: 휴식 중일 때만 현재 종료 시각을 30초 연장한다. (소리·진동은 실제로 끝날 때만 난다.)
+  function handleExtend() {
+    if (!workout.restEndsAt) return;
+    const next = extendRestEnd(workout.restEndsAt, Date.now());
+    if (next === null) return;
+    const saved = saveActiveWorkout({ ...workout, restEndsAt: next });
+    if (!saved.ok) {
+      setError({ message: saved.error, retry: "complete" });
+      return;
+    }
+    window.dispatchEvent(new Event(ACTIVE_CHANGE_EVENT));
+  }
+
+  // [건너뛰기]: 휴식을 바로 끝내고 다음 세트로 넘어간다. 타이머가 사라질 뿐이라 소리·진동은 나지 않는다.
+  function handleSkip() {
+    const saved = saveActiveWorkout({ ...workout, restEndsAt: null });
+    if (!saved.ok) {
+      setError({ message: saved.error, retry: "complete" });
+      return;
+    }
+    window.dispatchEvent(new Event(ACTIVE_CHANGE_EVENT));
+  }
+
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-8 px-6 py-10">
       <p className="text-center text-xl font-semibold">
@@ -189,7 +241,9 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
         </button>
       </div>
 
-      {workout.restEndsAt && <RestTimer restEndsAt={workout.restEndsAt} />}
+      {workout.restEndsAt && (
+        <RestTimer restEndsAt={workout.restEndsAt} onExtend={handleExtend} onSkip={handleSkip} />
+      )}
 
       {error && (
         <div role="alert" className="flex flex-col gap-2 rounded-xl border-2 border-red-500 p-4">

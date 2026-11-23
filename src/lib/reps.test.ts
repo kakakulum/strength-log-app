@@ -118,3 +118,13 @@ describe("getRecentWorkouts — 최근 운동", () => {
     expect(getRecentWorkouts(data, "leg-press", 5)).toEqual([]);
   });
 });
+
+describe("횟수 수정이 집계에 반영되는지", () => {
+  it("총 반복 횟수·최근 운동은 바뀌고 세트 수는 그대로", () => {
+    const before = workout("2026-11-03T10:00:00+09:00", [8, 8, 8, 8]);
+    const after = before.map((s) => (s.setNo === 4 ? { ...s, reps: 12 } : s));
+    expect(getMonthlyReps(after, "squat", 1, NOW)[0].reps).toBe(36);
+    expect(getRecentWorkouts(after, "squat", 1)[0].reps).toEqual([8, 8, 8, 12]);
+    expect(getRecentWorkouts(after, "squat", 1)[0].reps).toHaveLength(4);
+  });
+});

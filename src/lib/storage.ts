@@ -51,7 +51,10 @@ function isValidReps(reps: unknown): reps is number {
   );
 }
 
-function isSetRecord(value: unknown): value is SetRecord {
+/** 같은 탭에서 세트 기록을 바꿨을 때 화면을 다시 읽게 하는 알림 이름 (storage 이벤트는 다른 탭에서만 발생) */
+export const SETS_CHANGE_EVENT = "sets-change";
+
+export function isSetRecord(value: unknown): value is SetRecord {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
   return (
@@ -109,6 +112,82 @@ export function saveSet(record: SetRecord): Result<{ duplicate: boolean }> {
     // 저장 공간 부족·저장 차단 등
     return { ok: false, error: "기록을 저장하지 못했습니다. 다시 시도해 주세요." };
   }
+}
+
+/** 저장된 원본 배열을 그대로 읽는다. (형식이 낯선 항목도 지우지 않고 보존하기 위해 쓴다.) */
+function loadRawSets(): Result<unknown[]> {
+  const storage = getStorage("local");
+  if (!storage.ok) return storage;
+  try {
+    const raw = storage.value.getItem(SETS_KEY);
+    if (raw === null) return { ok: true, value: [] };
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return { ok: false, error: "저장된 기록 형식이 올바르지 않습니다." };
+    return { ok: true, value: parsed };
+  } catch {
+    return { ok: false, error: "기록을 읽지 못했습니다." };
+  }
+}
+
+function writeRawSets(items: unknown[], failMessage: string): Result<null> {
+  const storage = getStorage("local");
+  if (!storage.ok) return storage;
+  try {
+    storage.value.setItem(SETS_KEY, JSON.stringify(items));
+  } catch {
+    return { ok: false, error: failMessage };
+  }
+  window.dispatchEvent(new Event(SETS_CHANGE_EVENT));
+  return { ok: true, value: null };
+}
+
+/**
+ * 저장된 세트의 반복 횟수만 고친다. (운동 ID, 세트 번호, 날짜, 종목은 그대로)
+ * 하나라도 1~100 정수가 아니거나 대상 세트가 없으면 아무것도 바꾸지 않고 오류를 돌려준다.
+ */
+export function updateSetReps(
+  workoutId: string,
+  changes: { setNo: number; reps: number }[],
+): Result<null> {
+  if (changes.some((c) => !isValidReps(c.reps))) {
+    return { ok: false, error: "횟수는 1~100 사이의 정수여야 합니다." };
+  }
+  const loaded = loadRawSets();
+  if (!loaded.ok) return loaded;
+  const items = loaded.value.map((x) => (typeof x === "object" && x !== null ? { ...x } : x));
+  for (const c of changes) {
+    const target = items.find(
+      (x) =>
+        isSetRecord(x) && (x as SetRecord).workoutId === workoutId && (x as SetRecord).setNo === c.setNo,
+    ) as SetRecord | undefined;
+    if (!target) return { ok: false, error: "수정할 기록을 찾지 못했습니다." };
+    target.reps = c.reps;
+  }
+  return writeRawSets(items, "수정한 횟수를 저장하지 못했습니다. 다시 시도해 주세요.");
+}
+
+/**
+ * 백업에서 읽은 기록을 기존 기록에 합친다. (기존 기록은 그대로 두고 새 기록만 추가)
+ * 운동 ID + 세트 번호가 이미 있으면 추가하지 않는다. 저장에 실패하면 기존 기록은 그대로다.
+ */
+export function mergeSets(incoming: SetRecord[]): Result<{ added: number; skipped: number }> {
+  const loaded = loadRawSets();
+  if (!loaded.ok) return loaded;
+  const keys = new Set(
+    loaded.value.filter(isSetRecord).map((s) => `${s.workoutId}#${s.setNo}`),
+  );
+  const toAdd: SetRecord[] = [];
+  for (const s of incoming) {
+    const key = `${s.workoutId}#${s.setNo}`;
+    if (keys.has(key)) continue;
+    keys.add(key);
+    toAdd.push(s);
+  }
+  if (toAdd.length > 0) {
+    const written = writeRawSets([...loaded.value, ...toAdd], "기록을 복원하지 못했습니다. 기존 기록은 그대로입니다.");
+    if (!written.ok) return written;
+  }
+  return { ok: true, value: { added: toAdd.length, skipped: incoming.length - toAdd.length } };
 }
 
 /** 마지막 운동 설정값을 읽는다. 없거나 올바르지 않으면 null. */
