@@ -55,3 +55,49 @@ export function getMonthlyCounts(
   }
   return result;
 }
+
+export interface WorkoutDetail {
+  workoutId: string;
+  /** 운동한 한국 날짜 "YYYY-MM-DD" */
+  date: string;
+  exerciseId: ExerciseId;
+  /** 세트 번호 순서대로의 반복 횟수 */
+  reps: number[];
+}
+
+/** 시각이 속한 한국 시간(KST) 날짜를 "YYYY-MM-DD"로 돌려준다. */
+export function kstDateKey(time: string | Date): string {
+  return new Date(new Date(time).getTime() + KST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/**
+ * 한 종목의 특정 달 운동 기록을 운동(workoutId) 단위로 묶어 날짜순으로 돌려준다.
+ * 각 항목은 날짜, 종목, 세트별 횟수를 가진다.
+ * @param month "YYYY-MM"
+ */
+export function getMonthDetail(
+  sets: SetRecord[],
+  exerciseId: ExerciseId,
+  month: string,
+): WorkoutDetail[] {
+  const groups = new Map<string, { first: string; items: SetRecord[] }>();
+  for (const s of sets) {
+    if (s.exerciseId !== exerciseId || kstMonthKey(s.completedAt) !== month) continue;
+    const g = groups.get(s.workoutId);
+    if (g) {
+      g.items.push(s);
+      if (new Date(s.completedAt) < new Date(g.first)) g.first = s.completedAt;
+    } else {
+      groups.set(s.workoutId, { first: s.completedAt, items: [s] });
+    }
+  }
+
+  return [...groups.entries()]
+    .sort((a, b) => new Date(a[1].first).getTime() - new Date(b[1].first).getTime())
+    .map(([workoutId, g]) => ({
+      workoutId,
+      date: kstDateKey(g.first),
+      exerciseId,
+      reps: [...g.items].sort((x, y) => x.setNo - y.setNo).map((s) => s.reps),
+    }));
+}

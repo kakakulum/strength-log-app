@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { ExerciseId } from "./exercises";
 import type { SetRecord } from "./types";
-import { getMonthlyCounts, kstMonthKey } from "./trend";
+import { getMonthDetail, getMonthlyCounts, kstMonthKey } from "./trend";
 
 // 기준 시각: 2026-11-15(일) KST → 이번 달 2026-11
 const NOW = new Date("2026-11-15T12:00:00+09:00");
@@ -91,5 +91,43 @@ describe("getMonthlyCounts — 기간별 월별 세트 수", () => {
     const r = getMonthlyCounts([], "squat", 6, NOW);
     expect(r).toHaveLength(6);
     expect(r.every((m) => m.count === 0)).toBe(true);
+  });
+});
+
+describe("getMonthDetail — 월별 기록 상세", () => {
+  const rec = (workoutId: string, setNo: number, reps: number, completedAt: string, exerciseId: ExerciseId = "squat"): SetRecord => ({
+    workoutId, setNo, exerciseId, reps, completedAt,
+  });
+  const DETAIL: SetRecord[] = [
+    // 11월 20일 운동 (세트 번호가 뒤섞여 저장돼도 번호 순서로 보여준다)
+    rec("b", 2, 10, "2026-11-20T18:05:00+09:00"),
+    rec("b", 1, 10, "2026-11-20T18:00:00+09:00"),
+    rec("b", 4, 8, "2026-11-20T18:15:00+09:00"),
+    rec("b", 3, 9, "2026-11-20T18:10:00+09:00"),
+    // 11월 3일 운동 (더 이른 날짜가 먼저 나와야 한다)
+    rec("a", 1, 12, "2026-11-03T07:00:00+09:00"),
+    rec("a", 2, 11, "2026-11-03T07:05:00+09:00"),
+    // 같은 날 두 번째 운동
+    rec("c", 1, 5, "2026-11-20T21:00:00+09:00"),
+    // 다른 달 / 다른 종목: 제외
+    rec("d", 1, 10, "2026-10-31T23:59:59+09:00"),
+    rec("e", 1, 10, "2026-11-03T08:00:00+09:00", "bench-press"),
+  ];
+
+  it("운동 단위로 묶어 날짜순, 세트 번호순 횟수를 돌려준다", () => {
+    expect(getMonthDetail(DETAIL, "squat", "2026-11")).toEqual([
+      { workoutId: "a", date: "2026-11-03", exerciseId: "squat", reps: [12, 11] },
+      { workoutId: "b", date: "2026-11-20", exerciseId: "squat", reps: [10, 10, 9, 8] },
+      { workoutId: "c", date: "2026-11-20", exerciseId: "squat", reps: [5] },
+    ]);
+  });
+
+  it("달의 경계는 KST 기준 (10-31 23:59:59는 10월)", () => {
+    expect(getMonthDetail(DETAIL, "squat", "2026-10").map((w) => w.date)).toEqual(["2026-10-31"]);
+  });
+
+  it("기록이 없는 달·종목은 빈 목록", () => {
+    expect(getMonthDetail(DETAIL, "squat", "2026-09")).toEqual([]);
+    expect(getMonthDetail(DETAIL, "leg-press", "2026-11")).toEqual([]);
   });
 });
