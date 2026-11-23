@@ -3,7 +3,8 @@
 // Design Ref: §1 세트 진행 — `스쿼트 · 1/4세트`, 목표 횟수 기본값, [−]/[+] 조정(1~100)
 // Design Ref: §2 — 설정 화면에서 시작해 이동해 온 경우에만 열고, 새로고침·주소 직접 입력이면 진행 정보를 지우고 홈으로 보낸다.
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { playRestEndAlert, unlockAlert } from "@/lib/alert";
 import { isSessionEntryAllowed } from "@/lib/entry";
 import { getExerciseName } from "@/lib/exercises";
 import {
@@ -57,6 +58,15 @@ function formatRemaining(sec: number): string {
 function RestTimer({ restEndsAt }: { restEndsAt: string }) {
   const [now, setNow] = useState(() => Date.now());
 
+  const remainingSec = Math.max(0, Math.ceil((new Date(restEndsAt).getTime() - now) / 1000));
+
+  // 휴식이 "끝나는 순간"에 한 번만 알린다. 이 화면에 들어왔을 때 이미 끝나 있던 휴식은 알리지 않는다.
+  const prevRemainingRef = useRef(remainingSec);
+  useEffect(() => {
+    if (prevRemainingRef.current > 0 && remainingSec === 0) playRestEndAlert();
+    prevRemainingRef.current = remainingSec;
+  }, [remainingSec]);
+
   useEffect(() => {
     const update = () => setNow(Date.now());
     const id = window.setInterval(update, 500);
@@ -67,8 +77,6 @@ function RestTimer({ restEndsAt }: { restEndsAt: string }) {
       document.removeEventListener("visibilitychange", update);
     };
   }, []);
-
-  const remainingSec = Math.max(0, Math.ceil((new Date(restEndsAt).getTime() - now) / 1000));
 
   if (remainingSec === 0) {
     return (
@@ -111,6 +119,8 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
   // 저장에 실패하면 입력한 횟수를 그대로 두고 오류와 [재시도]를 보여준다.
   function handleComplete() {
     if (saving || allDone) return;
+    // 화면을 누르는 이 순간에 소리를 미리 켜 둔다. (브라우저는 누른 뒤에만 소리를 허용한다.)
+    unlockAlert();
     setSaving(true);
     const saved = saveSet({
       workoutId: workout.workoutId,
