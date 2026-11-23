@@ -5,7 +5,13 @@
 import Link from "next/link";
 import { useState } from "react";
 import { getExerciseName, type ExerciseId } from "@/lib/exercises";
-import { RANGES, getMonthDetail, getMonthlyReps, type RangeMonths } from "@/lib/trend";
+import {
+  RANGES,
+  getMonthDetail,
+  getMonthlyReps,
+  getRecentWorkouts,
+  type RangeMonths,
+} from "@/lib/trend";
 import type { SetRecord } from "@/lib/types";
 import { useSets } from "@/lib/use-sets";
 import { getWeeklyStatus } from "@/lib/week";
@@ -58,6 +64,27 @@ function MonthDetail({
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+/** 최근 운동 5회: 날짜, 세트별 횟수, 세트 수, 총 반복 횟수를 최신순으로 나란히 보여준다 */
+function RecentWorkouts({ sets, exerciseId }: { sets: SetRecord[]; exerciseId: ExerciseId }) {
+  const workouts = getRecentWorkouts(sets, exerciseId, 5);
+  return (
+    <section aria-label="최근 운동 5회" className="flex flex-col gap-3">
+      <h2 className="text-sm font-semibold text-zinc-500">최근 운동 5회</h2>
+      <ul className="flex flex-col gap-2">
+        {workouts.map((w) => (
+          <li key={w.workoutId} className="flex flex-col rounded-xl bg-zinc-500/10 px-3 py-2">
+            <span className="text-sm text-zinc-500">{formatDay(w.date)}</span>
+            <span className="text-lg font-semibold">{w.reps.join(" · ")}회</span>
+            <span className="text-sm text-zinc-500">
+              {w.reps.length}세트 · 총 {w.reps.reduce((a, b) => a + b, 0)}회
+            </span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -145,6 +172,8 @@ export default function WeeklyView({ exerciseId }: { exerciseId: ExerciseId }) {
               <dd className="text-right text-2xl font-bold">{status.changeLabel}</dd>
             </dl>
           </section>
+
+          <RecentWorkouts sets={sets} exerciseId={exerciseId} />
 
           <TrendSection sets={sets} exerciseId={exerciseId} />
         </>

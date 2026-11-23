@@ -101,6 +101,37 @@ export function kstDateKey(time: string | Date): string {
 }
 
 /**
+ * 한 종목의 최근 운동을 운동(workoutId) 단위로 묶어 최신순으로 돌려준다.
+ * 날짜는 운동의 첫 세트를 완료한 KST 날짜, reps는 세트 번호 순서의 횟수다. 기간 제한 없이 전체 기록에서 찾는다.
+ */
+export function getRecentWorkouts(
+  sets: SetRecord[],
+  exerciseId: ExerciseId,
+  limit: number,
+): WorkoutDetail[] {
+  const groups = new Map<string, { first: string; items: SetRecord[] }>();
+  for (const s of sets) {
+    if (s.exerciseId !== exerciseId) continue;
+    const g = groups.get(s.workoutId);
+    if (g) {
+      g.items.push(s);
+      if (new Date(s.completedAt) < new Date(g.first)) g.first = s.completedAt;
+    } else {
+      groups.set(s.workoutId, { first: s.completedAt, items: [s] });
+    }
+  }
+  return [...groups.entries()]
+    .sort((a, b) => new Date(b[1].first).getTime() - new Date(a[1].first).getTime())
+    .slice(0, limit)
+    .map(([workoutId, g]) => ({
+      workoutId,
+      date: kstDateKey(g.first),
+      exerciseId,
+      reps: [...g.items].sort((x, y) => x.setNo - y.setNo).map((s) => s.reps),
+    }));
+}
+
+/**
  * 한 종목의 특정 달 운동 기록을 운동(workoutId) 단위로 묶어 날짜순으로 돌려준다.
  * 각 항목은 날짜, 종목, 세트별 횟수를 가진다.
  * @param month "YYYY-MM"

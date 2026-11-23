@@ -8,6 +8,41 @@ import { EXERCISES, isExerciseId, type ExerciseId } from "@/lib/exercises";
 import { allowSessionEntry } from "@/lib/entry";
 import { loadSettings, saveActiveWorkout, saveSettings } from "@/lib/storage";
 import { DEFAULT_SETTINGS, LIMITS } from "@/lib/types";
+import { getRecentWorkouts } from "@/lib/trend";
+import { useSets } from "@/lib/use-sets";
+
+/** "2026-11-03" → "11월 3일" */
+function formatDay(date: string): string {
+  const [, m, d] = date.split("-");
+  return `${Number(m)}월 ${Number(d)}일`;
+}
+
+/** 선택한 종목의 가장 최근 운동을 참고용으로만 보여준다 (목표 횟수·세트 수는 바꾸지 않는다) */
+function LastWorkout({ exerciseId }: { exerciseId: ExerciseId }) {
+  const state = useSets();
+  if (state.status !== "ok") return null;
+  const last = getRecentWorkouts(state.sets, exerciseId, 1)[0];
+  return (
+    <section
+      aria-label="지난 운동 참고"
+      className="flex flex-col rounded-xl bg-zinc-500/10 px-3 py-2"
+    >
+      <span className="text-sm text-zinc-500">
+        지난 운동{last ? ` · ${formatDay(last.date)}` : ""}
+      </span>
+      {last ? (
+        <>
+          <span className="text-lg font-semibold">{last.reps.join(" · ")}회</span>
+          <span className="text-sm text-zinc-500">
+            {last.reps.length}세트 · 총 {last.reps.reduce((a, b) => a + b, 0)}회
+          </span>
+        </>
+      ) : (
+        <span className="text-zinc-500">이 종목은 아직 운동 기록이 없습니다</span>
+      )}
+    </section>
+  );
+}
 
 // 브라우저에서만 저장소를 읽을 수 있으므로, 화면이 브라우저에 붙은 뒤에만 폼을 보여준다.
 const subscribe = () => () => {};
@@ -96,6 +131,7 @@ function SetupFields() {
             </button>
           ))}
         </div>
+        <LastWorkout exerciseId={exerciseId} />
       </fieldset>
 
       <label className="flex flex-col gap-1">

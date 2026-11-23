@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { ExerciseId } from "./exercises";
 import type { SetRecord } from "./types";
-import { getMonthDetail, getMonthlyReps } from "./trend";
+import { getMonthDetail, getMonthlyReps, getRecentWorkouts } from "./trend";
 
 // 기준 시각: 2026-11-15(일) KST → 이번 달 2026-11
 const NOW = new Date("2026-11-15T12:00:00+09:00");
@@ -79,5 +79,42 @@ describe("getMonthlyReps — 월별 총 반복 횟수", () => {
 
   it("기록이 하나도 없으면 전부 0", () => {
     expect(getMonthlyReps([], "squat", 6, NOW).every((m) => m.reps === 0)).toBe(true);
+  });
+});
+
+describe("getRecentWorkouts — 최근 운동", () => {
+  const data = [
+    ...workout("2026-11-01T10:00:00+09:00", [8, 8, 8, 8]),
+    ...workout("2026-11-03T10:00:00+09:00", [10, 9, 7, 6]),
+    ...workout("2026-10-20T10:00:00+09:00", [10, 10]),
+    ...workout("2026-10-10T10:00:00+09:00", [9]),
+    ...workout("2026-09-30T10:00:00+09:00", [7, 7]),
+    ...workout("2026-09-01T10:00:00+09:00", [5]),
+    ...workout("2026-11-05T10:00:00+09:00", [30], "bench-press"),
+  ];
+
+  it("운동 ID로 묶어 최신순 5개만, 날짜와 세트별 횟수를 돌려준다", () => {
+    const r = getRecentWorkouts(data, "squat", 5);
+    expect(r.map((w) => w.date)).toEqual([
+      "2026-11-03",
+      "2026-11-01",
+      "2026-10-20",
+      "2026-10-10",
+      "2026-09-30",
+    ]);
+    expect(r[0].reps).toEqual([10, 9, 7, 6]);
+    expect(r[1].reps).toEqual([8, 8, 8, 8]);
+  });
+
+  it("총합이 같아도(32회) 세트별 횟수로 구분된다", () => {
+    const [a, b] = getRecentWorkouts(data, "squat", 2);
+    const sum = (x: number[]) => x.reduce((p, c) => p + c, 0);
+    expect(sum(a.reps)).toBe(sum(b.reps));
+    expect(a.reps).not.toEqual(b.reps);
+  });
+
+  it("limit 1은 가장 최근 운동, 기록이 없는 종목은 빈 배열", () => {
+    expect(getRecentWorkouts(data, "squat", 1)[0].date).toBe("2026-11-03");
+    expect(getRecentWorkouts(data, "leg-press", 5)).toEqual([]);
   });
 });
