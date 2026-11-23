@@ -132,6 +132,8 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
   const exerciseName = getExerciseName(workout.exerciseId) ?? workout.exerciseId;
   const allDone = workout.completedSets >= workout.plannedSets;
   const currentSet = Math.min(workout.completedSets + 1, workout.plannedSets);
+  // 지금 세트가 마지막인지 (마지막일 때만 배지와 버튼 문구가 바뀐다)
+  const isLastCurrentSet = currentSet === workout.plannedSets;
 
   // 결과 화면으로 간다. 새 세트는 추가하지 않고, 지금까지 완료한 세트만 보여준다.
   // (진행 중 운동 정보는 결과 화면에서 지운다. 여기서 지우면 홈으로 되돌아가 버린다.)
@@ -213,8 +215,15 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-8 px-6 py-10">
-      <p className="text-center text-xl font-semibold">
-        {exerciseName} · {currentSet}/{workout.plannedSets}세트
+      <p className="flex flex-wrap items-center justify-center gap-2 text-center text-xl font-semibold">
+        <span>
+          {exerciseName} · {currentSet}/{workout.plannedSets}세트
+        </span>
+        {isLastCurrentSet && (
+          <span className="rounded-full bg-orange-500 px-3 py-1 text-sm font-bold text-white">
+            마지막 세트
+          </span>
+        )}
       </p>
 
       <div className="flex items-center justify-center gap-6">
@@ -265,7 +274,7 @@ function SetStepper({ workout }: { workout: ActiveWorkout }) {
           onClick={handleComplete}
           className="rounded-2xl bg-foreground px-6 py-6 text-2xl font-bold text-background disabled:opacity-40"
         >
-          세트 완료
+          {isLastCurrentSet ? "마지막 세트 저장하고 종료" : "세트 완료"}
         </button>
         <button
           type="button"

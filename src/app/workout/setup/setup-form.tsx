@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import { EXERCISES, isExerciseId, type ExerciseId } from "@/lib/exercises";
 import { allowSessionEntry } from "@/lib/entry";
-import { loadSettings, saveActiveWorkout, saveSettings } from "@/lib/storage";
+import { loadSettings, loadSettingsFor, saveActiveWorkout, saveSettings } from "@/lib/storage";
 import { DEFAULT_SETTINGS, LIMITS } from "@/lib/types";
 import { getRecentWorkouts } from "@/lib/trend";
 import { useSets } from "@/lib/use-sets";
@@ -76,6 +76,16 @@ function SetupFields() {
   const [restSec, setRestSec] = useState(String(initial.restSec));
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // 종목을 바꾸면 그 종목의 마지막 설정을 불러오고, 없으면 앱 기본값을 쓴다. (다른 종목 설정과 섞이지 않는다.)
+  function selectExercise(id: ExerciseId) {
+    const loaded = loadSettingsFor(id);
+    const s = loaded.ok && loaded.value ? loaded.value : DEFAULT_SETTINGS;
+    setExerciseId(id);
+    setPlannedSets(String(s.plannedSets));
+    setTargetReps(String(s.targetReps));
+    setRestSec(String(s.restSec));
+  }
+
   const setsCheck = checkInt(plannedSets, "세트 수", LIMITS.plannedSets.min, LIMITS.plannedSets.max);
   const repsCheck = checkInt(targetReps, "목표 반복 횟수", LIMITS.reps.min, LIMITS.reps.max);
   const restCheck = checkInt(restSec, "휴식 시간(초)", LIMITS.restSec.min, LIMITS.restSec.max);
@@ -120,7 +130,7 @@ function SetupFields() {
               key={e.id}
               type="button"
               aria-pressed={exerciseId === e.id}
-              onClick={() => isExerciseId(e.id) && setExerciseId(e.id)}
+              onClick={() => isExerciseId(e.id) && selectExercise(e.id)}
               className={`rounded-xl border-2 px-3 py-3 text-base font-semibold ${
                 exerciseId === e.id
                   ? "border-foreground bg-foreground text-background"

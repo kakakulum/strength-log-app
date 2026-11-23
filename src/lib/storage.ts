@@ -190,7 +190,28 @@ export function mergeSets(incoming: SetRecord[]): Result<{ added: number; skippe
   return { ok: true, value: { added: toAdd.length, skipped: incoming.length - toAdd.length } };
 }
 
-/** 마지막 운동 설정값을 읽는다. 없거나 올바르지 않으면 null. */
+// 종목별 마지막 설정: { "squat": {...}, "deadlift": {...} }. 기존 "settings"(마지막 설정 1개)도 계속 쓴다.
+const SETTINGS_BY_EXERCISE_KEY = "settingsByExercise";
+
+function isValidSettings(v: Partial<WorkoutSettings> | null | undefined): v is WorkoutSettings {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    typeof v.exerciseId === "string" &&
+    isExerciseId(v.exerciseId) &&
+    isValidReps(v.targetReps) &&
+    typeof v.plannedSets === "number" &&
+    Number.isInteger(v.plannedSets) &&
+    v.plannedSets >= LIMITS.plannedSets.min &&
+    v.plannedSets <= LIMITS.plannedSets.max &&
+    typeof v.restSec === "number" &&
+    Number.isInteger(v.restSec) &&
+    v.restSec >= LIMITS.restSec.min &&
+    v.restSec <= LIMITS.restSec.max
+  );
+}
+
+/** 마지막 운동 설정값(종목 상관없이 가장 최근 1개)을 읽는다. 없거나 올바르지 않으면 null. */
 export function loadSettings(): Result<WorkoutSettings | null> {
   const storage = getStorage("local");
   if (!storage.ok) return storage;
@@ -198,29 +219,50 @@ export function loadSettings(): Result<WorkoutSettings | null> {
     const raw = storage.value.getItem(SETTINGS_KEY);
     if (raw === null) return { ok: true, value: null };
     const v = JSON.parse(raw) as Partial<WorkoutSettings>;
-    const valid =
-      typeof v.exerciseId === "string" &&
-      isExerciseId(v.exerciseId) &&
-      isValidReps(v.targetReps) &&
-      typeof v.plannedSets === "number" &&
-      Number.isInteger(v.plannedSets) &&
-      v.plannedSets >= LIMITS.plannedSets.min &&
-      v.plannedSets <= LIMITS.plannedSets.max &&
-      typeof v.restSec === "number" &&
-      Number.isInteger(v.restSec) &&
-      v.restSec >= LIMITS.restSec.min &&
-      v.restSec <= LIMITS.restSec.max;
-    return { ok: true, value: valid ? (v as WorkoutSettings) : null };
+    return { ok: true, value: isValidSettings(v) ? v : null };
   } catch {
     return { ok: false, error: "설정을 읽지 못했습니다." };
   }
 }
 
-/** 마지막 운동 설정값을 저장한다. */
+/**
+ * 한 종목의 마지막 설정을 읽는다. 종목별로 저장한 값이 우선이고,
+ * 없으면 기존 "마지막 설정"이 그 종목의 것일 때 그 값을 쓴다. 둘 다 없으면 null(앱 기본값을 쓴다).
+ */
+export function loadSettingsFor(exerciseId: string): Result<WorkoutSettings | null> {
+  const storage = getStorage("local");
+  if (!storage.ok) return storage;
+  try {
+    const rawMap = storage.value.getItem(SETTINGS_BY_EXERCISE_KEY);
+    if (rawMap !== null) {
+      const map = JSON.parse(rawMap) as Record<string, Partial<WorkoutSettings>>;
+      const own = map?.[exerciseId];
+      if (isValidSettings(own) && own.exerciseId === exerciseId) return { ok: true, value: own };
+    }
+  } catch {
+    return { ok: false, error: "설정을 읽지 못했습니다." };
+  }
+  const last = loadSettings();
+  if (!last.ok) return last;
+  return { ok: true, value: last.value && last.value.exerciseId === exerciseId ? last.value : null };
+}
+
+/** 운동 설정값을 저장한다: 마지막 설정과, 그 종목의 설정(종목별)을 함께 저장한다. */
 export function saveSettings(settings: WorkoutSettings): Result<null> {
   const storage = getStorage("local");
   if (!storage.ok) return storage;
   try {
+    let map: Record<string, unknown> = {};
+    try {
+      const parsed: unknown = JSON.parse(storage.value.getItem(SETTINGS_BY_EXERCISE_KEY) ?? "{}");
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        map = parsed as Record<string, unknown>;
+      }
+    } catch {
+      // 종목별 저장값이 깨져 있으면 새로 만든다.
+    }
+    map[settings.exerciseId] = settings;
+    storage.value.setItem(SETTINGS_BY_EXERCISE_KEY, JSON.stringify(map));
     storage.value.setItem(SETTINGS_KEY, JSON.stringify(settings));
     return { ok: true, value: null };
   } catch {
