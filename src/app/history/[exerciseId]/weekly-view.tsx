@@ -1,6 +1,6 @@
 "use client";
 
-// Design Ref: §1 종목 상세 — 위: 이번 주·지난주 세트 수와 전주 대비 변화, 아래: 기간 선택과 월별 세트 수 막대그래프.
+// Design Ref: §1 종목 상세 — 주간 세트 수, 월별 총 반복 횟수 막대그래프와 최근 운동 기록.
 // 막대를 누르면 그 달의 운동 기록(날짜·종목·세트별 횟수)을 연다. 기록이 없으면 안내 문구, 읽기 실패면 오류 문구.
 import Link from "next/link";
 import { useState } from "react";
@@ -72,8 +72,8 @@ function WorkoutRow({
   }
 
   return (
-    <li className="flex flex-col gap-1 rounded-xl bg-zinc-500/10 px-3 py-2">
-      <span className="text-sm text-zinc-500">
+    <li className="flex flex-col gap-1.5 rounded-xl bg-zinc-100 px-3.5 py-3 dark:bg-zinc-900">
+      <span className="text-sm text-zinc-600 dark:text-zinc-400">
         {formatDay(workout.date)} · {name}
       </span>
       {editing ? (
@@ -118,14 +118,14 @@ function WorkoutRow({
         </>
       ) : (
         <>
-          <span className="text-lg font-semibold">{workout.reps.join(" · ")}회</span>
-          <span className="text-sm text-zinc-500">
+          <span className="text-lg font-semibold tabular-nums">{workout.reps.join(" · ")}회</span>
+          <span className="text-sm text-zinc-600 dark:text-zinc-400">
             {workout.reps.length}세트 · 총 {workout.reps.reduce((a, b) => a + b, 0)}회
           </span>
           <button
             type="button"
             onClick={startEdit}
-            className="self-start text-sm text-zinc-500 underline"
+            className="mt-0.5 min-h-9 self-start rounded-md px-1 text-sm font-semibold text-blue-700 hover:bg-blue-500/10 focus-visible:outline-2 focus-visible:outline-blue-500 dark:text-blue-300"
           >
             횟수 수정
           </button>
@@ -154,10 +154,10 @@ function MonthDetail({
   return (
     <section
       aria-label={`${formatMonth(month)} 운동 기록`}
-      className="flex flex-col gap-2 rounded-2xl border-2 border-foreground p-4"
+      className="flex flex-col gap-3 rounded-2xl border border-blue-200 bg-white p-4 dark:border-blue-500/30 dark:bg-zinc-950"
     >
       <h3 className="font-semibold">
-        {formatMonth(month)} 운동 기록 · <span className="text-blue-500">총 {reps}회</span>
+        {formatMonth(month)} 운동 기록 · <span className="text-blue-700 dark:text-blue-300">총 {reps}회</span>
       </h3>
       {workouts.length === 0 ? (
         <p className="text-zinc-500">이 달에는 기록이 없습니다</p>
@@ -176,16 +176,18 @@ function MonthDetail({
 function RecentWorkouts({ sets, exerciseId }: { sets: SetRecord[]; exerciseId: ExerciseId }) {
   const workouts = getRecentWorkouts(sets, exerciseId, 5);
   return (
-    <section aria-label="최근 운동 5회" className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold text-zinc-500">최근 운동 5회</h2>
-      <ul className="flex flex-col gap-2">
+    <section aria-labelledby="recent-workouts-title" className="flex flex-col gap-3">
+      <h2 id="recent-workouts-title" className="text-lg font-bold">최근 운동 5회</h2>
+      <ul className="flex flex-col divide-y divide-zinc-200 rounded-2xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
         {workouts.map((w) => (
-          <li key={w.workoutId} className="flex flex-col rounded-xl bg-zinc-500/10 px-3 py-2">
-            <span className="text-sm text-zinc-500">{formatDay(w.date)}</span>
-            <span className="text-lg font-semibold">{w.reps.join(" · ")}회</span>
-            <span className="text-sm text-zinc-500">
-              {w.reps.length}세트 · 총 {w.reps.reduce((a, b) => a + b, 0)}회
-            </span>
+          <li key={w.workoutId} className="flex flex-col gap-1 px-4 py-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
+              <time dateTime={w.date} className="text-zinc-600 dark:text-zinc-400">{formatDay(w.date)}</time>
+              <span className="text-zinc-600 tabular-nums dark:text-zinc-400">
+                {w.reps.length}세트 · <strong className="font-bold text-foreground">총 {w.reps.reduce((a, b) => a + b, 0)}회</strong>
+              </span>
+            </div>
+            <span className="text-lg font-semibold tabular-nums">{w.reps.join(" · ")}회</span>
           </li>
         ))}
       </ul>
@@ -202,19 +204,19 @@ function TrendSection({ sets, exerciseId }: { sets: SetRecord[]; exerciseId: Exe
 
   return (
     <section aria-label="월간 추세" className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold text-zinc-500">월별 총 반복 횟수</h2>
+      <h2 className="text-lg font-bold">월별 총 반복 횟수</h2>
 
-      <div role="group" aria-label="조회 기간" className="grid grid-cols-4 gap-2">
+      <div role="group" aria-label="조회 기간" className="grid grid-cols-4 gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900">
         {RANGES.map((r) => (
           <button
             key={r.months}
             type="button"
             aria-pressed={range === r.months}
             onClick={() => setRange(r.months)}
-            className={`rounded-xl border-2 px-2 py-2 text-base font-semibold ${
+            className={`min-h-10 rounded-lg px-1 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-blue-500 ${
               range === r.months
-                ? "border-foreground bg-foreground text-background"
-                : "border-zinc-400"
+                ? "bg-white text-blue-700 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-800 dark:text-blue-300 dark:ring-zinc-700"
+                : "text-zinc-600 hover:text-foreground dark:text-zinc-400"
             }`}
           >
             {r.label}
@@ -249,10 +251,10 @@ export default function WeeklyView({ exerciseId }: { exerciseId: ExerciseId }) {
   const status = sets === null ? null : getWeeklyStatus(sets, exerciseId);
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-6 py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{name}</h1>
-        <Link href="/history" className="text-sm text-zinc-500 underline">
+    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-7 px-4 py-7 sm:px-6 sm:py-9">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-3xl font-bold tracking-tight">{name}</h1>
+        <Link href="/history" className="inline-flex min-h-10 items-center rounded-full border border-zinc-200 px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-blue-500 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900">
           종목 목록
         </Link>
       </div>
@@ -265,21 +267,29 @@ export default function WeeklyView({ exerciseId }: { exerciseId: ExerciseId }) {
         <p className="py-10 text-center text-zinc-500">아직 운동 기록이 없습니다</p>
       ) : (
         <>
-          <section aria-label="주간 현황" className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold text-zinc-500">주간 현황</h2>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 rounded-2xl border-2 border-zinc-400 p-5 text-lg">
-              <dt className="text-zinc-500">이번 주</dt>
-              <dd className="text-right font-semibold">{status.thisWeekCount}세트</dd>
-              <dt className="text-zinc-500">지난주</dt>
-              <dd className="text-right font-semibold">{status.lastWeekLabel}</dd>
-              <dt className="text-zinc-500">전주 대비</dt>
-              <dd className="text-right text-2xl font-bold">{status.changeLabel}</dd>
+          <section aria-labelledby="weekly-status-title" className="rounded-3xl border border-blue-100 bg-linear-to-br from-blue-50 to-white px-4 pt-4 pb-3.5 dark:border-blue-950 dark:from-[#101c32] dark:to-zinc-950">
+            <h2 id="weekly-status-title" className="text-sm font-semibold text-blue-800 dark:text-blue-300">주간 현황</h2>
+            <dl className="mt-2 grid grid-cols-2 tabular-nums">
+              <div className="col-span-2 flex items-baseline justify-between gap-3 pb-3">
+                <dt className="text-sm text-zinc-600 dark:text-zinc-400">이번 주</dt>
+                <dd className="text-right text-4xl font-bold tracking-tight">
+                  {status.thisWeekCount}<span className="ml-1 text-base font-semibold">세트</span>
+                </dd>
+              </div>
+              <div className="border-t border-blue-100 pt-3 pr-3 dark:border-blue-900/60">
+                <dt className="text-xs text-zinc-600 dark:text-zinc-400">지난주</dt>
+                <dd className="mt-1 text-sm font-semibold">{status.lastWeekLabel}</dd>
+              </div>
+              <div className="border-t border-l border-blue-100 pt-3 pl-3 dark:border-blue-900/60">
+                <dt className="text-xs text-zinc-600 dark:text-zinc-400">전주 대비</dt>
+                <dd className="mt-1 text-sm font-bold text-blue-700 dark:text-blue-300">{status.changeLabel}</dd>
+              </div>
             </dl>
           </section>
 
-          <RecentWorkouts sets={sets} exerciseId={exerciseId} />
-
           <TrendSection sets={sets} exerciseId={exerciseId} />
+
+          <RecentWorkouts sets={sets} exerciseId={exerciseId} />
         </>
       )}
     </main>
