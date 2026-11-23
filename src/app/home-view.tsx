@@ -2,12 +2,35 @@
 
 // Design Ref: §1 홈 — [운동 시작], [기록·추세] 두 버튼과 기록이 없을 때의 안내 문구
 import Link from "next/link";
+import { useSyncExternalStore } from "react";
 import { backupFileName, buildBackup } from "@/lib/backup";
 import { buildCsv, csvFileName } from "@/lib/csv";
-import { loadSets } from "@/lib/storage";
-import { useSets } from "@/lib/use-sets";
+import { SETS_CHANGE_EVENT, loadSets } from "@/lib/storage";
 import RestorePanel from "./restore-panel";
-import WorkoutMascot from "./workout-mascot";
+
+// 저장소는 다른 탭에서 바뀔 수 있으므로 storage 이벤트를 구독한다.
+function subscribe(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(SETS_CHANGE_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(SETS_CHANGE_EVENT, onChange);
+  };
+}
+
+// 읽기에 실패했음을 나타내는 값. (실패를 0건으로 보이게 하면 기록이 사라진 것처럼 오해한다.)
+const READ_FAILED = -1;
+
+// 저장된 세트 수(숫자)를 스냅샷으로 쓴다. 읽기에 실패하면 READ_FAILED.
+function getSnapshot(): number {
+  const result = loadSets();
+  return result.ok ? result.value.length : READ_FAILED;
+}
+
+// 서버 렌더링 중에는 저장소를 알 수 없으므로 null(아직 모름)로 둔다.
+function getServerSnapshot(): number | null {
+  return null;
+}
 
 // Design Ref: §6 CSV 내보내기(nice) — 전체 기록을 엑셀에서 열 수 있는 CSV 파일로 저장한다.
 // 기록은 서버로 보내지 않고 이 브라우저 안에서 파일로 만든다.
@@ -37,7 +60,7 @@ function exportBackup() {
 }
 
 export default function HomeView() {
-  const state = useSets();
+  const setCount = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-6 py-10">
@@ -58,19 +81,18 @@ export default function HomeView() {
         </Link>
       </div>
 
-      {state.status === "ok" && <WorkoutMascot sets={state.sets} />}
-
-      {state.status === "ok" && state.sets.length === 0 && (
+      {/* 저장소를 읽은 뒤(null이 아닐 때) 기록이 0건이면 안내 문구를, 읽기에 실패했으면 오류 문구를 보여준다 */}
+      {setCount === 0 && (
         <p className="text-center text-zinc-500">아직 운동 기록이 없습니다</p>
       )}
-      {state.status === "error" && (
+      {setCount === READ_FAILED && (
         <p role="alert" className="text-center text-red-500">
           기록을 읽지 못했습니다. 브라우저 저장소를 사용할 수 없는 상태일 수 있습니다.
         </p>
       )}
 
       {/* 내보낼 기록이 있을 때만 작은 내보내기·백업 버튼을 보여준다 (필수 버튼 두 개는 그대로) */}
-      {state.status === "ok" && state.sets.length > 0 && (
+      {setCount !== null && setCount > 0 && (
         <div className="flex items-center justify-center gap-4">
           <button type="button" onClick={exportCsv} className="text-sm text-zinc-500 underline">
             내보내기 (CSV)
@@ -80,7 +102,7 @@ export default function HomeView() {
           </button>
         </div>
       )}
-      {state.status === "ok" && <RestorePanel />}
+      {setCount !== null && setCount !== READ_FAILED && <RestorePanel />}
     </main>
   );
 }
