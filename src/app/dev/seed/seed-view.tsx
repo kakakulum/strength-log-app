@@ -17,6 +17,9 @@ export default function SeedView() {
   return useIsClient() ? <SeedContent /> : null;
 }
 
+// 기존 기록을 읽지 못했음을 나타내는 값
+const UNREADABLE = -1;
+
 function SeedContent() {
   const [message, setMessage] = useState<string | null>(null);
   const [needConfirm, setNeedConfirm] = useState<number | null>(null);
@@ -25,9 +28,9 @@ function SeedContent() {
 
   function handleSeed() {
     const existing = loadSets();
-    const existingCount = existing.ok ? existing.value.length : 0;
-    // 기존 기록이 있으면 덮어쓰기 전에 한 번 더 확인한다.
-    if (existingCount > 0 && needConfirm === null) {
+    // 기존 기록을 읽지 못했을 때(UNREADABLE)도 0건으로 보지 않고, 덮어쓰기 전에 한 번 더 확인한다.
+    const existingCount = existing.ok ? existing.value.length : UNREADABLE;
+    if (existingCount !== 0 && needConfirm === null) {
       setNeedConfirm(existingCount);
       setMessage(null);
       return;
@@ -57,7 +60,9 @@ function SeedContent() {
 
       {needConfirm !== null && (
         <p role="alert" className="rounded-xl border-2 border-red-500 p-3 text-red-500">
-          이 브라우저에 기록 {needConfirm}건이 있습니다. 계속하면 모두 가상 기록으로 바뀝니다.
+          {needConfirm === UNREADABLE
+            ? "이 브라우저의 기존 기록을 읽지 못했습니다. 기록이 있어도 모두 가상 기록으로 바뀝니다."
+            : `이 브라우저에 기록 ${needConfirm}건이 있습니다. 계속하면 모두 가상 기록으로 바뀝니다.`}{" "}
           그래도 넣으려면 아래 버튼을 한 번 더 누르세요.
         </p>
       )}

@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { EXERCISES, type ExerciseId } from "./exercises";
 import { createSeedData, lastTwelveMonths } from "./seed";
-import { RANGES, getMonthlyCounts } from "./trend";
+import { RANGES, getMonthlyCounts, getMonthlyReps } from "./trend";
 import { getWeeklyStatus } from "./week";
 
 // 기준 시각을 여러 경계 상황으로 바꿔 가며 같은 정답이 나오는지 본다.
@@ -34,6 +34,17 @@ describe.each(Object.entries(NOWS))("가상 기록 — 기준 %s", (_label, now)
       for (const { months: n } of RANGES) {
         const got = getMonthlyCounts(seed.records, id as ExerciseId, n, now);
         const want = months.slice(0, n).map((month) => ({ month, count: seed.monthly[id][month] }));
+        expect(got, `${id} ${n}개월`).toEqual(want);
+      }
+    }
+  });
+
+  it("화면의 월별 총 반복 횟수가 정답표와 일치한다 (1개월·3개월·6개월·1년)", () => {
+    const months = lastTwelveMonths(now);
+    for (const { id } of EXERCISES) {
+      for (const { months: n } of RANGES) {
+        const got = getMonthlyReps(seed.records, id as ExerciseId, n, now);
+        const want = months.slice(0, n).map((month) => ({ month, reps: seed.monthlyReps[id][month] }));
         expect(got, `${id} ${n}개월`).toEqual(want);
       }
     }

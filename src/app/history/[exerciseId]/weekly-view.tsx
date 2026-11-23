@@ -51,9 +51,14 @@ function WorkoutRow({
   }
 
   function save() {
+    // 수정하는 동안 다른 탭에서 이 운동의 세트가 바뀌었으면 입력칸과 맞지 않으므로 저장하지 않는다.
+    if (drafts.length !== records.length) {
+      setEditing(false);
+      return;
+    }
     const changes: { setNo: number; reps: number }[] = [];
     for (let i = 0; i < records.length; i++) {
-      const text = drafts[i].trim();
+      const text = (drafts[i] ?? "").trim();
       const n = Number(text);
       if (text === "" || !Number.isInteger(n) || n < LIMITS.reps.min || n > LIMITS.reps.max) {
         setError(`${records[i].setNo}세트: ${LIMITS.reps.min}~${LIMITS.reps.max} 사이의 정수를 입력해 주세요.`);
@@ -86,6 +91,8 @@ function WorkoutRow({
                   type="number"
                   inputMode="numeric"
                   value={drafts[i] ?? ""}
+                  aria-invalid={error !== null}
+                  aria-describedby={error ? `reps-error-${workout.workoutId}` : undefined}
                   onChange={(e) =>
                     setDrafts((d) => d.map((v, j) => (j === i ? e.target.value : v)))
                   }
@@ -95,7 +102,7 @@ function WorkoutRow({
             ))}
           </div>
           {error && (
-            <p role="alert" className="text-sm text-red-500">
+            <p id={`reps-error-${workout.workoutId}`} role="alert" className="text-sm text-red-500">
               {error}
             </p>
           )}
@@ -178,6 +185,7 @@ function RecentWorkouts({ sets, exerciseId }: { sets: SetRecord[]; exerciseId: E
   return (
     <section aria-labelledby="recent-workouts-title" className="flex flex-col gap-3">
       <h2 id="recent-workouts-title" className="text-lg font-bold">최근 운동 5회</h2>
+      {workouts.length === 0 && <p className="text-zinc-500">이 종목은 아직 운동 기록이 없습니다</p>}
       <ul className="flex flex-col divide-y divide-zinc-200 rounded-2xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
         {workouts.map((w) => (
           <li key={w.workoutId} className="flex flex-col gap-1 px-4 py-3.5">

@@ -153,9 +153,15 @@ function SetupFields() {
           inputMode="numeric"
           className={inputClass}
           value={plannedSets}
+          aria-invalid={setsCheck.error !== null}
+          aria-describedby={setsCheck.error ? "setup-sets-error" : undefined}
           onChange={(e) => setPlannedSets(e.target.value)}
         />
-        {setsCheck.error && <span className="text-sm text-red-500">{setsCheck.error}</span>}
+        {setsCheck.error && (
+          <span id="setup-sets-error" className="text-sm text-red-500">
+            {setsCheck.error}
+          </span>
+        )}
       </label>
 
       <label className="flex flex-col gap-1">
@@ -167,9 +173,15 @@ function SetupFields() {
           inputMode="numeric"
           className={inputClass}
           value={targetReps}
+          aria-invalid={repsCheck.error !== null}
+          aria-describedby={repsCheck.error ? "setup-reps-error" : undefined}
           onChange={(e) => setTargetReps(e.target.value)}
         />
-        {repsCheck.error && <span className="text-sm text-red-500">{repsCheck.error}</span>}
+        {repsCheck.error && (
+          <span id="setup-reps-error" className="text-sm text-red-500">
+            {repsCheck.error}
+          </span>
+        )}
       </label>
 
       <label className="flex flex-col gap-1">
@@ -181,12 +193,22 @@ function SetupFields() {
           inputMode="numeric"
           className={inputClass}
           value={restSec}
+          aria-invalid={restCheck.error !== null}
+          aria-describedby={restCheck.error ? "setup-rest-error" : undefined}
           onChange={(e) => setRestSec(e.target.value)}
         />
-        {restCheck.error && <span className="text-sm text-red-500">{restCheck.error}</span>}
+        {restCheck.error && (
+          <span id="setup-rest-error" className="text-sm text-red-500">
+            {restCheck.error}
+          </span>
+        )}
       </label>
 
-      {saveError && <p className="text-sm text-red-500">{saveError}</p>}
+      {saveError && (
+        <p role="alert" className="text-sm text-red-500">
+          {saveError}
+        </p>
+      )}
 
       <button
         type="button"

@@ -41,6 +41,8 @@ export interface SeedData {
   weekly: Record<ExerciseId, WeeklyExpected>;
   /** 종목별·달별 정답 세트 수 (지난 12개월, 기록이 없는 달은 0) */
   monthly: Record<ExerciseId, Record<string, number>>;
+  /** 종목별·달별 정답 총 반복 횟수 (화면의 월별 총 반복 횟수 그래프 값) */
+  monthlyReps: Record<ExerciseId, Record<string, number>>;
 }
 
 /**
@@ -117,6 +119,21 @@ export function createSeedData(now: Date = new Date()): SeedData {
     ]),
   ) as SeedData["monthly"];
 
+  // 월간 반복 횟수 정답: 같은 방식으로 기록의 횟수를 직접 더한다.
+  const monthlyReps = Object.fromEntries(
+    exercises.map((id) => [
+      id,
+      Object.fromEntries(
+        months.map((month) => [
+          month,
+          records
+            .filter((r) => r.exerciseId === id && r.completedAt.slice(0, 7) === month)
+            .reduce((sum, r) => sum + r.reps, 0),
+        ]),
+      ),
+    ]),
+  ) as SeedData["monthlyReps"];
+
   const weekly: SeedData["weekly"] = {
     squat: { thisWeekCount: 7, lastWeekLabel: "5세트", changeLabel: "+2세트" },
     "bench-press": { thisWeekCount: 3, lastWeekLabel: "기록 없음", changeLabel: "비교 데이터 없음" },
@@ -125,5 +142,5 @@ export function createSeedData(now: Date = new Date()): SeedData {
     "leg-press": { thisWeekCount: 0, lastWeekLabel: "기록 없음", changeLabel: "비교 데이터 없음" },
   };
 
-  return { records, weekly, monthly };
+  return { records, weekly, monthly, monthlyReps };
 }

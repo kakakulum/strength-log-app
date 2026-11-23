@@ -17,13 +17,17 @@ export default function ResultView() {
     if (workoutId !== undefined) clearActiveWorkout();
   }, [workoutId]);
 
-  const sets = useMemo(() => {
-    if (!workoutId) return [];
+  // 읽기에 실패한 것을 "세트 없음"으로 보이게 하면 기록이 사라진 것처럼 오해하므로 구분한다.
+  const { sets, readError } = useMemo(() => {
+    if (!workoutId) return { sets: [], readError: null };
     const loaded = loadSets();
-    if (!loaded.ok) return [];
-    return loaded.value
-      .filter((s) => s.workoutId === workoutId)
-      .sort((a, b) => a.setNo - b.setNo);
+    if (!loaded.ok) return { sets: [], readError: loaded.error };
+    return {
+      sets: loaded.value
+        .filter((s) => s.workoutId === workoutId)
+        .sort((a, b) => a.setNo - b.setNo),
+      readError: null,
+    };
   }, [workoutId]);
 
   if (workoutId === undefined) return null;
@@ -35,7 +39,11 @@ export default function ResultView() {
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-8 px-6 py-10">
       <h1 className="text-center text-2xl font-bold">운동 결과</h1>
 
-      {sets.length === 0 ? (
+      {readError ? (
+        <p role="alert" className="text-center text-lg text-red-500">
+          {readError}
+        </p>
+      ) : sets.length === 0 ? (
         <p className="text-center text-lg text-zinc-500">완료한 세트가 없습니다</p>
       ) : (
         <div className="flex flex-col items-center gap-3">
