@@ -2,7 +2,7 @@
 // - 정적 파일(/_next/static, 아이콘): 저장된 것을 먼저 쓴다. (파일 이름에 해시가 있어 바뀌면 새 이름이다)
 // - 그 밖의 화면: 네트워크를 먼저 시도하고, 실패하면 저장된 것을 쓴다. (배포한 새 화면이 바로 보이게)
 // 운동 기록은 localStorage에 있어 이 파일과 무관하다. 기록을 서버로 보내거나 가져오지 않는다.
-const CACHE = "strength-log-v2";
+const CACHE = "strength-log-v3";
 // 처음 열 때 미리 저장해 두는 화면. 앱 안에서 링크로 이동한 화면은 화면 전체(HTML)가 저장되지 않으므로,
 // 오프라인에서 이동이 실패해도 열리도록 주요 화면을 미리 저장한다. (기록은 이 기기의 저장소에서 읽는다)
 const PRECACHE = [
@@ -14,6 +14,7 @@ const PRECACHE = [
   "/history/deadlift",
   "/history/lat-pulldown",
   "/history/leg-press",
+  "/history/push-up",
   "/icon-192.png",
 ];
 

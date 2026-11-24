@@ -1,10 +1,11 @@
-// Design Ref: §3 — 고정 종목 5개. 같은 종목은 항상 같은 ID로 집계한다.
+// Design Ref: §3 — 고정 종목 6개. 같은 종목은 항상 같은 ID로 집계한다.
 export const EXERCISES = [
   { id: "squat", name: "스쿼트" },
   { id: "bench-press", name: "벤치프레스" },
   { id: "deadlift", name: "데드리프트" },
   { id: "lat-pulldown", name: "랫풀다운" },
   { id: "leg-press", name: "레그프레스" },
+  { id: "push-up", name: "푸쉬업" },
 ] as const;
 
 export type ExerciseId = (typeof EXERCISES)[number]["id"];

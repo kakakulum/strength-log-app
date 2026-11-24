@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { EXERCISES, isExerciseId } from "@/lib/exercises";
 import WeeklyView from "./weekly-view";
 
-// 고정 종목 5개의 주소를 미리 만들어 둔다.
+// 고정 종목 6개의 주소를 미리 만들어 둔다.
 export function generateStaticParams() {
   return EXERCISES.map((e) => ({ exerciseId: e.id }));
 }

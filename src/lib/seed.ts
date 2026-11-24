@@ -52,6 +52,7 @@ export interface SeedData {
  * - 데드리프트: 이번 주 4세트 · 지난주 4세트 → `변화 없음`
  * - 랫풀다운: 이번 주 2세트 · 지난주 3세트 → `-1세트`
  * - 레그프레스: 기록 없음
+ * - 푸쉬업: 기록 없음
  */
 export function createSeedData(now: Date = new Date()): SeedData {
   const records: SetRecord[] = [];
@@ -106,7 +107,7 @@ export function createSeedData(now: Date = new Date()): SeedData {
 
   // 월간 정답: 만든 기록의 시각 문자열 앞 7글자("YYYY-MM")를 직접 센다.
   const months = lastTwelveMonths(now);
-  const exercises: ExerciseId[] = ["squat", "bench-press", "deadlift", "lat-pulldown", "leg-press"];
+  const exercises: ExerciseId[] = ["squat", "bench-press", "deadlift", "lat-pulldown", "leg-press", "push-up"];
   const monthly = Object.fromEntries(
     exercises.map((id) => [
       id,
@@ -140,6 +141,7 @@ export function createSeedData(now: Date = new Date()): SeedData {
     deadlift: { thisWeekCount: 4, lastWeekLabel: "4세트", changeLabel: "변화 없음" },
     "lat-pulldown": { thisWeekCount: 2, lastWeekLabel: "3세트", changeLabel: "-1세트" },
     "leg-press": { thisWeekCount: 0, lastWeekLabel: "기록 없음", changeLabel: "비교 데이터 없음" },
+    "push-up": { thisWeekCount: 0, lastWeekLabel: "기록 없음", changeLabel: "비교 데이터 없음" },
   };
 
   return { records, weekly, monthly, monthlyReps };

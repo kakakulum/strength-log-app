@@ -1,6 +1,6 @@
 "use client";
 
-// Design Ref: §1 기록·추세 — 종목 5개 목록(탭 1). 앱 전체에 기록이 없으면 안내 문구.
+// Design Ref: §1 기록·추세 — 종목 6개 목록(탭 1). 앱 전체에 기록이 없으면 안내 문구.
 import Link from "next/link";
 import { EXERCISES } from "@/lib/exercises";
 import { useSets } from "@/lib/use-sets";
