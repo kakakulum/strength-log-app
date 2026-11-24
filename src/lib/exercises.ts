@@ -5,7 +5,7 @@ export const EXERCISES = [
   { id: "deadlift", name: "데드리프트" },
   { id: "lat-pulldown", name: "랫풀다운" },
   { id: "leg-press", name: "레그프레스" },
-  { id: "push-up", name: "푸쉬업" },
+  { id: "push-up", name: "푸시업" },
 ] as const;
 
 export type ExerciseId = (typeof EXERCISES)[number]["id"];

@@ -52,7 +52,7 @@ export interface SeedData {
  * - 데드리프트: 이번 주 4세트 · 지난주 4세트 → `변화 없음`
  * - 랫풀다운: 이번 주 2세트 · 지난주 3세트 → `-1세트`
  * - 레그프레스: 기록 없음
- * - 푸쉬업: 기록 없음
+ * - 푸시업: 기록 없음
  */
 export function createSeedData(now: Date = new Date()): SeedData {
   const records: SetRecord[] = [];
