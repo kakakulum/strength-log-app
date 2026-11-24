@@ -9,9 +9,12 @@ import { isSessionEntryAllowed } from "@/lib/entry";
 import { keepScreenAwake } from "@/lib/wake-lock";
 import { extendRestEnd, restRemainingSec, shouldAlertRestEnd } from "@/lib/rest";
 import { shuffleRestQuotes } from "@/lib/rest-quotes";
+import { isNewBest } from "@/lib/records";
+import NewBestBadge from "@/app/new-best-badge";
 import { getExerciseName } from "@/lib/exercises";
 import {
   clearActiveWorkout,
+  loadSets,
   saveActiveWorkout,
   saveResultWorkoutId,
   saveSet,
@@ -134,11 +137,15 @@ function RestTimer({
 function SetStepper({
   workout,
   restQuote,
+  newBest,
   onRestStart,
+  onSetSaved,
 }: {
   workout: ActiveWorkout;
   restQuote: string | null;
+  newBest: number | null;
   onRestStart: () => void;
+  onSetSaved: (newBestReps: number | null) => void;
 }) {
   const router = useRouter();
   const [reps, setReps] = useState(workout.targetReps);
@@ -170,13 +177,14 @@ function SetStepper({
     // 화면을 누르는 이 순간에 소리를 미리 켜 둔다. (브라우저는 누른 뒤에만 소리를 허용한다.)
     unlockAlert();
     setSaving(true);
-    const saved = saveSet({
+    const record = {
       workoutId: workout.workoutId,
       setNo: workout.completedSets + 1,
       exerciseId: workout.exerciseId,
       reps,
       completedAt: toKstTimestamp(),
-    });
+    };
+    const saved = saveSet(record);
     if (!saved.ok) {
       setError({ message: saved.error, retry: "complete" });
       setSaving(false);
@@ -199,6 +207,9 @@ function SetStepper({
     }
     setError(null);
     setSaving(false);
+    // 방금 세트가 이 종목의 새 최고 기록이면 다음 화면에서 배지로 알린다. (읽기에 실패하면 알리지 않는다)
+    const all = loadSets();
+    onSetSaved(all.ok && isNewBest(all.value, record) ? reps : null);
     // 마지막 세트를 완료하면 바로 결과를 보여준다.
     if (isLastSet) {
       goToResult();
@@ -255,6 +266,8 @@ function SetStepper({
           </span>
         )}
       </p>
+
+      {newBest !== null && <NewBestBadge reps={newBest} />}
 
       <div className="flex items-center justify-center gap-6">
         <button
@@ -321,6 +334,8 @@ function SetStepper({
 export default function SessionView() {
   const router = useRouter();
   const [restQuote, setRestQuote] = useState<string | null>(null);
+  // 방금 저장한 세트가 새 최고 기록이면 그 횟수. 다음 세트를 저장할 때 다시 정해진다. (세트마다 화면이 새로 만들어지므로 여기서 들고 있는다)
+  const [newBest, setNewBest] = useState<number | null>(null);
   const restQuoteDeck = useRef<string[]>([]);
   const raw = useSyncExternalStore(subscribe, getActiveRaw, () => undefined);
   const workout = useMemo(() => (raw === undefined ? null : parseActive(raw)), [raw]);
@@ -358,7 +373,9 @@ export default function SessionView() {
       key={workout.completedSets}
       workout={workout}
       restQuote={restQuote}
+      newBest={newBest}
       onRestStart={showNextRestQuote}
+      onSetSaved={setNewBest}
     />
   );
 }

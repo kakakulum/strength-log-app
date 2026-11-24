@@ -13,6 +13,7 @@ import {
   type RangeMonths,
   type WorkoutDetail,
 } from "@/lib/trend";
+import { getBestRecord } from "@/lib/records";
 import { updateSetReps } from "@/lib/storage";
 import { LIMITS, type SetRecord } from "@/lib/types";
 import { useSets } from "@/lib/use-sets";
@@ -252,6 +253,21 @@ function TrendSection({ sets, exerciseId }: { sets: SetRecord[]; exerciseId: Exe
   );
 }
 
+/** 최고 기록: 이 종목에서 한 세트로 가장 많이 한 횟수와 그 날짜 */
+function BestRecord({ sets, exerciseId }: { sets: SetRecord[]; exerciseId: ExerciseId }) {
+  const best = getBestRecord(sets, exerciseId);
+  if (best === null) return null;
+  return (
+    <section aria-labelledby="best-record-title" className="flex items-baseline justify-between gap-3 rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3.5 dark:border-amber-900/60 dark:bg-amber-950/30">
+      <h2 id="best-record-title" className="text-sm font-semibold text-amber-800 dark:text-amber-300">최고 기록</h2>
+      <p className="text-right tabular-nums">
+        <span className="text-3xl font-bold tracking-tight">{best.reps}<span className="ml-1 text-base font-semibold">회</span></span>
+        <time dateTime={best.date} className="ml-2 text-sm text-zinc-600 dark:text-zinc-400">{formatDay(best.date)}</time>
+      </p>
+    </section>
+  );
+}
+
 export default function WeeklyView({ exerciseId }: { exerciseId: ExerciseId }) {
   const state = useSets();
   const name = getExerciseName(exerciseId) ?? exerciseId;
@@ -294,6 +310,8 @@ export default function WeeklyView({ exerciseId }: { exerciseId: ExerciseId }) {
               </div>
             </dl>
           </section>
+
+          <BestRecord sets={sets} exerciseId={exerciseId} />
 
           <TrendSection sets={sets} exerciseId={exerciseId} />
 

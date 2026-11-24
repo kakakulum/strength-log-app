@@ -3,7 +3,9 @@
 // Design Ref: §1 운동 결과 — `완료 4세트 · 총 37회`, 세트별 횟수(`10·10·9·8회`), [홈으로]
 import Link from "next/link";
 import { useEffect, useMemo, useSyncExternalStore } from "react";
+import NewBestBadge from "@/app/new-best-badge";
 import { getExerciseName } from "@/lib/exercises";
+import { newBestOfWorkout } from "@/lib/records";
 import { clearActiveWorkout, loadResultWorkoutId, loadSets } from "@/lib/storage";
 
 const subscribe = () => () => {};
@@ -18,11 +20,12 @@ export default function ResultView() {
   }, [workoutId]);
 
   // 읽기에 실패한 것을 "세트 없음"으로 보이게 하면 기록이 사라진 것처럼 오해하므로 구분한다.
-  const { sets, readError } = useMemo(() => {
-    if (!workoutId) return { sets: [], readError: null };
+  const { sets, readError, newBest } = useMemo(() => {
+    if (!workoutId) return { sets: [], readError: null, newBest: null };
     const loaded = loadSets();
-    if (!loaded.ok) return { sets: [], readError: loaded.error };
+    if (!loaded.ok) return { sets: [], readError: loaded.error, newBest: null };
     return {
+      newBest: newBestOfWorkout(loaded.value, workoutId),
       sets: loaded.value
         .filter((s) => s.workoutId === workoutId)
         .sort((a, b) => a.setNo - b.setNo),
@@ -52,6 +55,7 @@ export default function ResultView() {
             완료 {sets.length}세트 · 총 {totalReps}회
           </p>
           <p className="text-xl text-zinc-500">{sets.map((s) => s.reps).join("·")}회</p>
+          {newBest !== null && <NewBestBadge reps={newBest} />}
         </div>
       )}
 
