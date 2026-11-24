@@ -14,7 +14,11 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // 서비스 워커 파일은 브라우저가 항상 새로 확인하게 한다. (고쳐도 예전 것이 남지 않게)
+      { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }] },
+    ];
   },
   cacheComponents: true,
   partialPrefetching: true,
