@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import { backupFileName, buildBackup } from "@/lib/backup";
 import { buildCsv, csvFileName } from "@/lib/csv";
-import { SETS_CHANGE_EVENT, loadSets } from "@/lib/storage";
+import { backupReminderDays } from "@/lib/backup-reminder";
+import { SETS_CHANGE_EVENT, loadLastBackupAt, loadSets, saveLastBackupAt } from "@/lib/storage";
 import RestorePanel from "./restore-panel";
 
 // 저장소는 다른 탭에서 바뀔 수 있으므로 storage 이벤트를 구독한다.
@@ -30,6 +31,16 @@ function getSnapshot(): number {
 // 서버 렌더링 중에는 저장소를 알 수 없으므로 null(아직 모름)로 둔다.
 function getServerSnapshot(): number | null {
   return null;
+}
+
+// 백업 알림에 보여줄 "마지막 백업 후 지난 일수". 알릴 필요가 없거나 읽지 못하면 0.
+function getReminderSnapshot(): number {
+  const result = loadSets();
+  return result.ok ? backupReminderDays(result.value, loadLastBackupAt()) : 0;
+}
+
+function getReminderServerSnapshot(): number {
+  return 0;
 }
 
 // Design Ref: §6 CSV 내보내기(nice) — 전체 기록을 엑셀에서 열 수 있는 CSV 파일로 저장한다.
@@ -57,10 +68,12 @@ function exportBackup() {
   const loaded = loadSets();
   if (!loaded.ok) return;
   downloadFile(buildBackup(loaded.value), "application/json", backupFileName());
+  saveLastBackupAt(); // 백업 알림의 기준 시각
 }
 
 export default function HomeView() {
   const setCount = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const reminderDays = useSyncExternalStore(subscribe, getReminderSnapshot, getReminderServerSnapshot);
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-6 py-10">
@@ -88,6 +101,13 @@ export default function HomeView() {
       {setCount === READ_FAILED && (
         <p role="alert" className="text-center text-red-500">
           기록을 읽지 못했습니다. 브라우저 저장소를 사용할 수 없는 상태일 수 있습니다.
+        </p>
+      )}
+
+      {/* 기록이 이 브라우저에만 있으므로, 오래 백업하지 않았으면 한 줄로 알린다 (백업하면 사라진다) */}
+      {reminderDays > 0 && (
+        <p role="status" className="rounded-xl bg-zinc-100 px-4 py-3 text-center text-sm dark:bg-zinc-800">
+          마지막 백업 후 {reminderDays}일이 지났습니다. 기록은 이 브라우저에만 있으니 [백업 (JSON)]으로 저장해 두세요.
         </p>
       )}
 

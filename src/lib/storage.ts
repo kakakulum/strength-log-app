@@ -319,6 +319,31 @@ export function clearActiveWorkout(): void {
   }
 }
 
+const LAST_BACKUP_KEY = "lastBackupAt";
+
+/** 마지막으로 JSON 백업을 내려받은 시각(ISO 문자열). 없거나 읽지 못하면 null. */
+export function loadLastBackupAt(): string | null {
+  const storage = getStorage("local");
+  if (!storage.ok) return null;
+  try {
+    return storage.value.getItem(LAST_BACKUP_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** JSON 백업을 내려받은 시각을 남긴다. 실패해도 백업 파일 자체에는 영향이 없으므로 무시한다. */
+export function saveLastBackupAt(now: Date = new Date()): void {
+  const storage = getStorage("local");
+  if (!storage.ok) return;
+  try {
+    storage.value.setItem(LAST_BACKUP_KEY, now.toISOString());
+    window.dispatchEvent(new Event(SETS_CHANGE_EVENT)); // 홈의 백업 알림이 바로 사라지게 한다
+  } catch {
+    // 알림 기준만 갱신되지 않을 뿐이다.
+  }
+}
+
 const RESULT_KEY = "resultWorkoutId";
 
 /** 결과 화면에서 보여줄 운동 ID를 저장한다 (탭을 닫으면 사라지는 sessionStorage). */
