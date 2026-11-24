@@ -1,6 +1,7 @@
 // Design Ref: §2 — 브라우저 저장소(localStorage/sessionStorage)에 기록을 저장·조회한다.
 // Plan SC: 운동 ID + 세트 번호 중복 저장 방지, 저장 실패 시 오류 반환, 서버 전송 없음.
 import { isExerciseId } from "./exercises";
+import { sanitizeGoals, type WeeklyGoals } from "./goals";
 import {
   LIMITS,
   type ActiveWorkout,
@@ -316,6 +317,38 @@ export function clearActiveWorkout(): void {
     storage.value.removeItem(ACTIVE_KEY);
   } catch {
     // 지우기에 실패해도 다음 진입 때 다시 정리되므로 무시한다.
+  }
+}
+
+/** 같은 탭에서 주간 목표를 바꿨을 때 화면을 다시 읽게 하는 알림 이름 */
+export const GOALS_CHANGE_EVENT = "goals-change";
+const GOALS_KEY = "weeklyGoals";
+
+/**
+ * 주간 목표를 읽는다. 운동 기록(`sets`)과 따로 저장된다.
+ * 값이 없으면 빈 목표이고, 올바르지 않은 항목은 걸러낸다. 읽지 못하면 오류를 돌려준다.
+ */
+export function loadWeeklyGoals(): Result<WeeklyGoals> {
+  const storage = getStorage("local");
+  if (!storage.ok) return storage;
+  try {
+    const raw = storage.value.getItem(GOALS_KEY);
+    return { ok: true, value: raw === null ? {} : sanitizeGoals(JSON.parse(raw)) };
+  } catch {
+    return { ok: false, error: "주간 목표를 읽지 못했습니다." };
+  }
+}
+
+/** 주간 목표를 저장한다(전체 교체). 운동 기록은 건드리지 않는다. 비어 있으면 목표를 모두 지운다. */
+export function saveWeeklyGoals(goals: WeeklyGoals): Result<null> {
+  const storage = getStorage("local");
+  if (!storage.ok) return storage;
+  try {
+    storage.value.setItem(GOALS_KEY, JSON.stringify(sanitizeGoals(goals)));
+    window.dispatchEvent(new Event(GOALS_CHANGE_EVENT));
+    return { ok: true, value: null };
+  } catch {
+    return { ok: false, error: "주간 목표를 저장하지 못했습니다." };
   }
 }
 

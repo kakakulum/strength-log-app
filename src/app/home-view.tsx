@@ -7,6 +7,7 @@ import { backupFileName, buildBackup } from "@/lib/backup";
 import { buildCsv, csvFileName } from "@/lib/csv";
 import { backupReminderDays } from "@/lib/backup-reminder";
 import { SETS_CHANGE_EVENT, loadLastBackupAt, loadSets, saveLastBackupAt } from "@/lib/storage";
+import GoalsCard from "./goals-card";
 import RestorePanel from "./restore-panel";
 
 // 저장소는 다른 탭에서 바뀔 수 있으므로 storage 이벤트를 구독한다.
@@ -93,6 +94,9 @@ export default function HomeView() {
           기록·추세
         </Link>
       </div>
+
+      {/* 주간 목표: 필수 버튼 두 개 아래의 작은 카드 (기록이 아직 없어도 목표는 정할 수 있다) */}
+      <GoalsCard />
 
       {/* 저장소를 읽은 뒤(null이 아닐 때) 기록이 0건이면 안내 문구를, 읽기에 실패했으면 오류 문구를 보여준다 */}
       {setCount === 0 && (
