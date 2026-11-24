@@ -6,7 +6,8 @@ import { useSyncExternalStore } from "react";
 import { backupFileName, buildBackup } from "@/lib/backup";
 import { buildCsv, csvFileName } from "@/lib/csv";
 import { backupReminderDays } from "@/lib/backup-reminder";
-import { getWeekSummary } from "@/lib/week";
+import { getExerciseName } from "@/lib/exercises";
+import { getWeekWorkouts, type WeekExercise } from "@/lib/week";
 import { SETS_CHANGE_EVENT, loadLastBackupAt, loadSets, saveLastBackupAt } from "@/lib/storage";
 import RestorePanel from "./restore-panel";
 
@@ -44,12 +45,12 @@ function getReminderServerSnapshot(): number {
   return 0;
 }
 
-// 이번 주 요약 문구. 기록이 없거나 읽지 못하면 빈 문자열(숫자·문자 같은 기본값이라 스냅샷이 안정적이다).
+// 이번 주 요약(종목별 세트별 횟수)을 JSON 문자열로 스냅샷에 쓴다. 기록이 없거나 읽지 못하면 빈 문자열.
+// (문자열이라 값이 같으면 같은 스냅샷으로 취급되어 화면이 불필요하게 다시 그려지지 않는다.)
 function getSummarySnapshot(): string {
   const result = loadSets();
   if (!result.ok || result.value.length === 0) return "";
-  const { sets, days } = getWeekSummary(result.value);
-  return sets === 0 ? "이번 주는 아직 운동하지 않았습니다" : `이번 주 ${days}일 운동 · 총 ${sets}세트`;
+  return JSON.stringify(getWeekWorkouts(result.value));
 }
 
 function getSummaryServerSnapshot(): string {
@@ -84,6 +85,24 @@ function exportBackup() {
   saveLastBackupAt(); // 백업 알림의 기준 시각
 }
 
+/** 이번 주 요약: 종목마다 한 줄, 운동이 여러 번이면 `/`로 나눈다. 이번 주 운동이 없으면 안내 한 줄. */
+function WeekSummary({ items }: { items: WeekExercise[] }) {
+  if (items.length === 0) {
+    return <p className="text-center text-zinc-500">이번 주는 아직 운동하지 않았습니다</p>;
+  }
+  return (
+    <section aria-label="이번 주 운동" className="flex flex-col gap-1.5 rounded-2xl border border-zinc-300 px-4 py-3 dark:border-zinc-700">
+      <h2 className="text-sm font-semibold text-zinc-500">이번 주</h2>
+      {items.map((it) => (
+        <p key={it.exerciseId} className="flex items-baseline justify-between gap-3 tabular-nums">
+          <span className="font-semibold">{getExerciseName(it.exerciseId) ?? it.exerciseId}</span>
+          <span className="text-right">{it.workouts.map((w) => w.join("·")).join(" / ")}회</span>
+        </p>
+      ))}
+    </section>
+  );
+}
+
 export default function HomeView() {
   const setCount = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const reminderDays = useSyncExternalStore(subscribe, getReminderSnapshot, getReminderServerSnapshot);
@@ -93,10 +112,8 @@ export default function HomeView() {
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-6 py-10">
       <h1 className="text-center text-2xl font-bold">근력운동 기록</h1>
 
-      {/* 기록이 있을 때만: 이번 주(월요일 00:00~) 운동한 날 수와 총 세트 수 한 줄 */}
-      {weekSummary !== "" && (
-        <p className="text-center text-lg font-semibold tabular-nums">{weekSummary}</p>
-      )}
+      {/* 기록이 있을 때만: 이번 주(월요일 00:00~)에 한 종목마다 세트별 횟수. 예) 푸시업 3·3·3·3회 */}
+      {weekSummary !== "" && <WeekSummary items={JSON.parse(weekSummary) as WeekExercise[]} />}
 
       <div className="flex flex-col gap-4">
         <Link

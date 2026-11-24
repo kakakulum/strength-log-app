@@ -9,7 +9,7 @@ import { isSessionEntryAllowed } from "@/lib/entry";
 import { keepScreenAwake } from "@/lib/wake-lock";
 import { extendRestEnd, restRemainingSec, shouldAlertRestEnd } from "@/lib/rest";
 import { shuffleRestQuotes } from "@/lib/rest-quotes";
-import { isNewBest } from "@/lib/records";
+import { getBestRecord, isNewBest } from "@/lib/records";
 import NewBestBadge from "@/app/new-best-badge";
 import { getExerciseName } from "@/lib/exercises";
 import {
@@ -153,6 +153,11 @@ function SetStepper({
   // (종료에서 난 오류의 재시도가 새 세트를 저장하면 안 된다.)
   const [error, setError] = useState<{ message: string; retry: "complete" | "end" | "extend" | "skip" } | null>(null);
   const [saving, setSaving] = useState(false);
+  // 동기부여용 현재 최고 기록. 세트마다 이 화면이 새로 만들어지므로, 방금 저장한 세트까지 포함해 다시 읽힌다.
+  const [bestReps] = useState<number | null>(() => {
+    const loaded = loadSets();
+    return loaded.ok ? (getBestRecord(loaded.value, workout.exerciseId)?.reps ?? null) : null;
+  });
   const exerciseName = getExerciseName(workout.exerciseId) ?? workout.exerciseId;
   const allDone = workout.completedSets >= workout.plannedSets;
   const currentSet = Math.min(workout.completedSets + 1, workout.plannedSets);
@@ -256,6 +261,13 @@ function SetStepper({
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-8 px-6 py-10">
+      {/* 이 종목의 기록이 있을 때만: 운동 이름과 세트 수 바로 위에 현재 최고 기록 */}
+      {bestReps !== null && (
+        <p className="-mb-4 text-center text-base font-semibold text-amber-600 dark:text-amber-400">
+          현재 최고 기록 {bestReps}회
+        </p>
+      )}
+
       <p className="flex flex-wrap items-center justify-center gap-2 text-center text-xl font-semibold">
         <span>
           {exerciseName} · {currentSet}/{workout.plannedSets}세트
