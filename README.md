@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 근력운동 기록 앱
 
-## Getting Started
+세트 완료 버튼 한 번으로 기록을 저장하고 휴식 타이머를 자동으로 시작하며, 종목별 주간 세트 수와 전주 대비 변화를 보여주는 근력운동 기록 앱입니다. 헬스장에서 스마트폰으로 쓰는 것을 전제로 만들었습니다.
 
-First, run the development server:
+## 왜 만들었나
+
+운동 기록을 채팅에 남기고 휴식 시간은 타이머 앱으로 재면, 지난 기록을 찾고 주간 세트 수를 합산하기 번거롭고 세트마다 앱을 오가느라 운동 흐름이 끊깁니다. 이 앱은 그 두 가지를 한 화면에서 해결합니다.
+
+## 주요 기능
+
+**핵심 (must)**
+1. **세트 기록 + 자동 휴식 타이머**: `[세트 완료]`를 누르면 횟수가 저장되고 휴식이 시작됩니다. 목표 횟수가 미리 채워져 있어 다를 때만 `− / +`로 조정합니다. 휴식이 끝나면 소리·진동으로 알리고, 마지막 세트 뒤에는 휴식을 시작하지 않습니다.
+2. **종목별 주간 세트 수와 전주 대비 변화**: 예) 이번 주 7세트, 지난주 5세트 → `+2세트`. 주는 한국 시간(KST) 월요일 00:00부터 셉니다.
+
+**함께 만든 기능**
+- 최근 1개월·3개월·6개월·1년 월별 총 반복 횟수 그래프와 월별 상세 기록, 저장한 세트의 횟수 수정
+- 지난 운동 참고, 최근 운동 5회, 종목별 마지막 설정 불러오기
+- 휴식 `+30초`·`건너뛰기`, 마지막 세트 표시, 운동 중 화면 켜짐 유지
+- 엑셀용 CSV 내보내기, JSON 백업·복원
+
+종목은 스쿼트·벤치프레스·데드리프트·랫풀다운·레그프레스 5개로 고정되어 있습니다.
+
+## 데이터와 개인정보
+
+- 로그인이 없고 기록은 **이 기기의 브라우저 저장소에만** 저장됩니다. 서버나 외부 서비스로 보내지 않습니다.
+- 사이트 데이터를 지우면 기록도 지워지며 다른 기기로 자동 이전되지 않습니다. 보관이 필요하면 CSV 내보내기나 JSON 백업을 사용하세요.
+- 앱이 쓰는 API 키는 없습니다.
+
+## 기술 스택
+
+Next.js (App Router) · React · TypeScript · Tailwind CSS · Vitest · Vercel 배포
+
+## 실행 방법
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # http://localhost:3000
+npm test         # 집계·추세 정답 테스트
+npm run lint
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+개발용 가상 기록 페이지(`/dev/seed`)는 로컬과 Preview 배포에서만 열리고, 운영 배포에서는 404입니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 문서
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [PRD.md](PRD.md): 기획서 (문제 정의, 성공 기준, 기능·범위, 보안 검토)
+- [PLAN.md](PLAN.md): 작업 순서와 성공 기준
+- [DESIGN.md](DESIGN.md): 화면 구성과 데이터 흐름
+- [CHECK.md](CHECK.md): 점검 결과 (성공 기준 판정, 갭 분석, 보안 점검)
+- [CLAUDE.md](CLAUDE.md): AI 작업 규칙
