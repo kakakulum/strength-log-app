@@ -77,3 +77,27 @@ export function getWeeklyStatus(
     changeLabel,
   };
 }
+
+export interface WeekSummary {
+  /** 이번 주(KST 월요일 00:00~) 완료 세트 수 (모든 종목 합) */
+  sets: number;
+  /** 이번 주에 운동한 날 수 (한국 시간 날짜 기준, 같은 날은 1일) */
+  days: number;
+}
+
+/**
+ * 홈에 보여줄 이번 주 요약: 모든 종목의 완료 세트 수와 운동한 날 수.
+ * 앱에 기록된 세트만 센다. 날짜는 기기 시간대와 무관하게 한국 시간 기준이다.
+ * @param now 기준 시각 (테스트에서 고정할 수 있도록 인자로 받는다)
+ */
+export function getWeekSummary(sets: SetRecord[], now: Date = new Date()): WeekSummary {
+  const thisWeek = kstWeekStart(now);
+  const days = new Set<string>();
+  let count = 0;
+  for (const s of sets) {
+    if (kstWeekStart(s.completedAt) !== thisWeek) continue;
+    count += 1;
+    days.add(new Date(new Date(s.completedAt).getTime() + KST_OFFSET_MS).toISOString().slice(0, 10));
+  }
+  return { sets: count, days: days.size };
+}

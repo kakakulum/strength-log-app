@@ -6,6 +6,7 @@ import { useSyncExternalStore } from "react";
 import { backupFileName, buildBackup } from "@/lib/backup";
 import { buildCsv, csvFileName } from "@/lib/csv";
 import { backupReminderDays } from "@/lib/backup-reminder";
+import { getWeekSummary } from "@/lib/week";
 import { SETS_CHANGE_EVENT, loadLastBackupAt, loadSets, saveLastBackupAt } from "@/lib/storage";
 import RestorePanel from "./restore-panel";
 
@@ -43,6 +44,18 @@ function getReminderServerSnapshot(): number {
   return 0;
 }
 
+// 이번 주 요약 문구. 기록이 없거나 읽지 못하면 빈 문자열(숫자·문자 같은 기본값이라 스냅샷이 안정적이다).
+function getSummarySnapshot(): string {
+  const result = loadSets();
+  if (!result.ok || result.value.length === 0) return "";
+  const { sets, days } = getWeekSummary(result.value);
+  return sets === 0 ? "이번 주는 아직 운동하지 않았습니다" : `이번 주 ${days}일 운동 · 총 ${sets}세트`;
+}
+
+function getSummaryServerSnapshot(): string {
+  return "";
+}
+
 // Design Ref: §6 CSV 내보내기(nice) — 전체 기록을 엑셀에서 열 수 있는 CSV 파일로 저장한다.
 // 기록은 서버로 보내지 않고 이 브라우저 안에서 파일로 만든다.
 function downloadFile(content: string, type: string, fileName: string) {
@@ -74,10 +87,16 @@ function exportBackup() {
 export default function HomeView() {
   const setCount = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const reminderDays = useSyncExternalStore(subscribe, getReminderSnapshot, getReminderServerSnapshot);
+  const weekSummary = useSyncExternalStore(subscribe, getSummarySnapshot, getSummaryServerSnapshot);
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-6 py-10">
       <h1 className="text-center text-2xl font-bold">근력운동 기록</h1>
+
+      {/* 기록이 있을 때만: 이번 주(월요일 00:00~) 운동한 날 수와 총 세트 수 한 줄 */}
+      {weekSummary !== "" && (
+        <p className="text-center text-lg font-semibold tabular-nums">{weekSummary}</p>
+      )}
 
       <div className="flex flex-col gap-4">
         <Link
