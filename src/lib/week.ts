@@ -1,6 +1,6 @@
 // Design Ref: §2-B 주간 현황 — KST 월요일 00:00 기준 주, 종목별 세트 합산, 전주 대비 표시 규칙
 // Plan SC: 집계가 정답과 전부 일치 (이번 주 7세트·지난주 5세트 → `+2세트`)
-import { EXERCISES, type ExerciseId } from "./exercises";
+import type { ExerciseId } from "./exercises";
 import type { SetRecord } from "./types";
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -76,37 +76,4 @@ export function getWeeklyStatus(
     lastWeekLabel: lastWeekCount === 0 ? "기록 없음" : `${lastWeekCount}세트`,
     changeLabel,
   };
-}
-
-export interface WeekExercise {
-  exerciseId: ExerciseId;
-  /** 이번 주에 한 운동들(먼저 한 순서). 운동마다 세트 번호 순서의 반복 횟수 */
-  workouts: number[][];
-}
-
-/**
- * 홈에 보여줄 이번 주 요약: 이번 주(KST 월요일 00:00~)에 한 종목마다, 운동별 세트별 반복 횟수.
- * 예) 푸시업 [[3,3,3,3]], 스쿼트 [[10,10],[8]]. 이번 주에 한 종목만 고정 종목 순서로 돌려준다.
- * 앱에 기록된 세트만 쓰며, 기기 시간대와 무관하게 한국 시간 기준이다.
- * @param now 기준 시각 (테스트에서 고정할 수 있도록 인자로 받는다)
- */
-export function getWeekWorkouts(sets: SetRecord[], now: Date = new Date()): WeekExercise[] {
-  const thisWeek = kstWeekStart(now);
-  const result: WeekExercise[] = [];
-  for (const { id } of EXERCISES) {
-    const groups = new Map<string, SetRecord[]>();
-    for (const s of sets) {
-      if (s.exerciseId !== id || kstWeekStart(s.completedAt) !== thisWeek) continue;
-      const g = groups.get(s.workoutId);
-      if (g) g.push(s);
-      else groups.set(s.workoutId, [s]);
-    }
-    if (groups.size === 0) continue;
-    const workouts = [...groups.values()]
-      .map((g) => g.sort((a, b) => a.setNo - b.setNo))
-      .sort((a, b) => Date.parse(a[0].completedAt) - Date.parse(b[0].completedAt))
-      .map((g) => g.map((s) => s.reps));
-    result.push({ exerciseId: id, workouts });
-  }
-  return result;
 }
