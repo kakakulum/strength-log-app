@@ -10,7 +10,10 @@ function setup(online: boolean) {
   const listeners: Record<string, Handler> = {};
   const fetched: string[] = [];
   const cache = {
-    addAll: async () => {},
+    add: async (url: string) => {
+      const abs = new URL(url, "https://app.test").href;
+      store.set(abs, await fakeFetch({ url: abs }));
+    },
     put: async (req: { url: string }, res: Response) => void store.set(req.url, res),
   };
   const fakeCaches = {
@@ -45,7 +48,13 @@ function setup(online: boolean) {
       return "ERROR";
     }
   }
-  return { request, fetched, store };
+  // 설치 단계(미리 저장)를 실행하고 끝날 때까지 기다린다.
+  async function install() {
+    let done: Promise<unknown> = Promise.resolve();
+    listeners.install({ request: null, respondWith: () => {}, waitUntil: (p) => void (done = p) });
+    await done;
+  }
+  return { request, fetched, store, install };
 }
 
 describe("서비스 워커", () => {
@@ -58,6 +67,19 @@ describe("서비스 워커", () => {
     const off = setup(false);
     off.store.set("https://app.test/history", new Response("saved-history"));
     expect(await off.request("/history", { mode: "navigate" })).toBe("saved-history");
+  });
+
+  it("처음 열 때 주요 화면을 미리 저장해, 오프라인에서 기록·추세와 종목 상세가 열린다", async () => {
+    const s = setup(true);
+    await s.install();
+    for (const path of ["/history", "/workout/setup", "/history/squat", "/history/leg-press"]) {
+      expect(s.store.has(`https://app.test${path}`), path).toBe(true);
+    }
+    // 같은 저장소 내용으로 오프라인 상황을 만든다.
+    const off = setup(false);
+    for (const [k, v] of s.store) off.store.set(k, v.clone());
+    expect(await off.request("/history", { mode: "navigate" })).toBe("body:https://app.test/history");
+    expect(await off.request("/history/lat-pulldown", { mode: "navigate" })).toBe("body:https://app.test/history/lat-pulldown");
   });
 
   it("저장해 둔 적 없는 화면을 오프라인으로 열면 저장된 홈(/)을 보여준다", async () => {
